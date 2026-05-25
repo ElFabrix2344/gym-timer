@@ -1,6 +1,6 @@
 {
-  "name": "Gym Timer",
-  "short_name": "Gym Timer",
+  "name": "VOLTA",
+  "short_name": "VOLTA",
   "description": "Timer de entrenamiento con registro de sesiones e historial FitNotes",
   "start_url": "./",
   "scope": "./",

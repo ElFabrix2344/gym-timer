@@ -1,12 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Full bleed background (maskable — no border-radius) -->
-  <rect width="512" height="512" fill="#111111"/>
-  <!-- Ring track — r=152 keeps everything inside the 80% safe zone -->
-  <circle cx="256" cy="256" r="152" fill="none" stroke="#222222" stroke-width="24"/>
-  <!-- Timer arc — 270° clockwise from 12 o'clock -->
-  <circle cx="256" cy="256" r="152" fill="none" stroke="#4f9eff" stroke-width="24"
-    stroke-dasharray="716 239" stroke-linecap="round"
-    transform="rotate(-90 256 256)"/>
-  <!-- Play button (slightly smaller to stay in safe zone) -->
-  <polygon points="226,196 226,316 336,256" fill="#ffffff"/>
+
+  <!-- Background — full bleed, no border-radius for maskable -->
+  <rect width="512" height="512" fill="#0d0d0d"/>
+
+  <!--
+    Outer arc — 270°, thick, dominant
+    r=165, circ≈1036.7 → 270°≈777, gap≈260
+    Starts at 6 o'clock, sweeps CCW through 9, 12, 3
+    Gap: bottom-right quadrant (3 → 6)
+  -->
+  <circle
+    cx="256" cy="256" r="165"
+    fill="none"
+    stroke="#e2e6ed"
+    stroke-width="28"
+    stroke-linecap="round"
+    stroke-dasharray="777 260"
+    transform="rotate(90 256 256)"
+  />
+
+  <!--
+    Inner arc — 90°, thin, echo
+    r=116, circ≈729 → 90°≈182, gap≈547
+    Fills the bottom-right gap of the outer arc at smaller radius
+  -->
+  <circle
+    cx="256" cy="256" r="116"
+    fill="none"
+    stroke="#e2e6ed"
+    stroke-width="10"
+    stroke-linecap="round"
+    stroke-dasharray="182 547"
+    opacity="0.38"
+  />
+
 </svg>

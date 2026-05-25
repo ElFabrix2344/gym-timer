@@ -139,6 +139,7 @@ function tick() {
     phase = 'idle';
     statRests.textContent = ++totalRests;
     beep('end');
+    if ('vibrate' in navigator) navigator.vibrate([200, 100, 200, 100, 200]);
     flashScreen();
     showToast('¡A TRABAJAR!');
     phaseBadge.textContent = 'TRABAJO';

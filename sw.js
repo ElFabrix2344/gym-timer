@@ -1,4 +1,4 @@
-const CACHE = 'gym-timer-v1';
+const CACHE = 'volta-v1';
 
 const PRECACHE = [
   './',
