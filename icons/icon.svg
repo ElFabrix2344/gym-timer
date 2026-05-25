@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="114" fill="#111111"/>
+  <!-- Ring track -->
+  <circle cx="256" cy="256" r="168" fill="none" stroke="#222222" stroke-width="26"/>
+  <!-- Timer arc — 270° clockwise from 12 o'clock -->
+  <circle cx="256" cy="256" r="168" fill="none" stroke="#4f9eff" stroke-width="26"
+    stroke-dasharray="791 265" stroke-linecap="round"
+    transform="rotate(-90 256 256)"/>
+  <!-- Play button -->
+  <polygon points="218,184 218,328 358,256" fill="#ffffff"/>
+</svg>

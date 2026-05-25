@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GYM TIMER</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#111111">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Gym Timer">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+  <script>
+    (function () {
+      const t = localStorage.getItem('gym-timer-theme') || 'light';
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
+</head>
+<body>
+
+<div class="flash" id="flash"></div>
+<div class="complete-toast" id="toast">¡SERIE COMPLETADA!</div>
+
+<!-- History panel -->
+<div class="history-panel" id="historyPanel">
+  <div class="history-header">
+    <span class="history-title">HISTORIAL</span>
+    <button class="btn-close-history" id="btnCloseHistory">✕</button>
+  </div>
+  <div class="history-content" id="historyContent"></div>
+</div>
+
+<!-- FitNotes panel -->
+<div class="fn-panel" id="fnPanel">
+  <div class="fn-header">
+    <div class="fn-header-left">
+      <button class="btn-fn-back" id="btnFnBack">← Volver</button>
+      <span class="fn-title" id="fnTitle">FITNOTES</span>
+    </div>
+    <div class="fn-header-right">
+      <label class="btn-fn-import" for="fnFileInput">↑ Importar CSV</label>
+      <input type="file" id="fnFileInput" accept=".csv">
+      <button class="btn-close-fn" id="btnCloseFn">✕</button>
+    </div>
+  </div>
+
+  <div class="fn-body">
+    <!-- View: no data -->
+    <div id="fnViewEmpty" class="fn-view">
+      <div class="fn-empty-content">
+        <div class="fn-empty-icon">📊</div>
+        <p class="fn-empty-text">Importa tu historial de FitNotes</p>
+        <p class="fn-empty-sub">En FitNotes: Más → Exportar datos → exporta el CSV y selecciónalo aquí</p>
+        <label class="btn-fn-import-cta" for="fnFileInput">Seleccionar archivo CSV</label>
+      </div>
+    </div>
+
+    <!-- View: search -->
+    <div id="fnViewSearch" class="fn-view" style="display:none">
+      <div class="fn-search-wrap">
+        <input class="fn-search-input" id="fnSearchInput" type="text"
+               placeholder="Buscar ejercicio..." autocomplete="off"/>
+      </div>
+      <div class="fn-import-info" id="fnImportInfo"></div>
+      <div class="fn-results" id="fnResults"></div>
+    </div>
+
+    <!-- View: exercise history -->
+    <div id="fnViewExercise" class="fn-view" style="display:none">
+      <div class="fn-exercise-content" id="fnExerciseContent"></div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="header">
+    <div class="logo">WORKOUT</div>
+    <div class="header-right">
+      <button class="btn-theme" id="btnTheme" title="Cambiar tema">🌙</button>
+      <div class="phase-badge work" id="phaseBadge">TRABAJO</div>
+    </div>
+  </div>
+
+  <div class="timer-wrap">
+    <svg class="ring-svg" viewBox="0 0 260 260">
+      <circle class="ring-bg" cx="130" cy="130" r="118"/>
+      <circle class="ring-progress" id="ringProgress" cx="130" cy="130" r="118"
+        stroke-dasharray="741.4"
+        stroke-dashoffset="0"/>
+    </svg>
+    <div class="timer-inner">
+      <div class="time-display" id="timeDisplay">1:30</div>
+      <div class="time-label" id="timeLabel">DESCANSO</div>
+    </div>
+  </div>
+
+  <div class="sets-row">
+    <button class="sets-btn" id="setsDown">−</button>
+    <div class="sets-info">
+      <div class="sets-display" id="setsDisplay">0</div>
+      <div class="sets-label">SERIES</div>
+      <div class="sets-dots" id="setsDots"></div>
+    </div>
+    <button class="sets-btn" id="setsUp">+</button>
+  </div>
+
+  <div class="duration-section">
+    <div class="section-label">Tiempo de descanso</div>
+    <div class="duration-pills" id="pills">
+      <button class="pill" data-val="30">30s</button>
+      <button class="pill active" data-val="90">1:30</button>
+      <button class="pill" data-val="120">2:00</button>
+      <button class="pill" data-val="180">3:00</button>
+    </div>
+    <div class="custom-row">
+      <input class="custom-input" id="customInput" type="number" min="5" max="600" placeholder="seg"/>
+      <span class="custom-label">segundos (manual)</span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-secondary" id="btnReset" title="Reset">↺</button>
+    <button class="btn-main" id="btnPlay">▶</button>
+    <button class="btn-secondary" id="btnSet" title="Registrar serie">＋</button>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="stat-value" id="statSets">0</div>
+      <div class="stat-label">Series</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="statRests">0</div>
+      <div class="stat-label">Descansos</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" id="statTime">0m</div>
+      <div class="stat-label">En gym</div>
+    </div>
+  </div>
+
+  <!-- ── Session log ──────────────────────────────────── -->
+  <div class="log-section">
+    <div class="section-label">Registrar ejercicio</div>
+
+    <div class="log-form" id="logForm">
+      <input class="log-input-wide" id="logExercise" type="text" placeholder="Nombre del ejercicio" autocomplete="off"/>
+      <div class="log-grid">
+        <div class="log-field">
+          <input class="log-input" id="logWeight" type="text" placeholder="Peso"/>
+          <span class="log-unit">kg</span>
+        </div>
+        <div class="log-field">
+          <input class="log-input" id="logSets" type="number" min="1" max="99" placeholder="Series"/>
+        </div>
+        <div class="log-field">
+          <input class="log-input" id="logReps" type="text" placeholder="Reps"/>
+        </div>
+      </div>
+      <button class="btn-log-save" id="btnLogSave">Guardar ejercicio</button>
+    </div>
+
+    <div class="session-log" id="sessionLog"></div>
+
+    <button class="btn-history" id="btnHistory">Ver sesiones anteriores</button>
+    <button class="btn-fitnotes" id="btnFitNotes">Historial FitNotes</button>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () =>
+      navigator.serviceWorker.register('./sw.js')
+    );
+  }
+</script>
+</body>
+</html>

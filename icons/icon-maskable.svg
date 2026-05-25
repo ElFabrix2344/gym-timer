@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Full bleed background (maskable — no border-radius) -->
+  <rect width="512" height="512" fill="#111111"/>
+  <!-- Ring track — r=152 keeps everything inside the 80% safe zone -->
+  <circle cx="256" cy="256" r="152" fill="none" stroke="#222222" stroke-width="24"/>
+  <!-- Timer arc — 270° clockwise from 12 o'clock -->
+  <circle cx="256" cy="256" r="152" fill="none" stroke="#4f9eff" stroke-width="24"
+    stroke-dasharray="716 239" stroke-linecap="round"
+    transform="rotate(-90 256 256)"/>
+  <!-- Play button (slightly smaller to stay in safe zone) -->
+  <polygon points="226,196 226,316 336,256" fill="#ffffff"/>
+</svg>
