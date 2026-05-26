@@ -201,13 +201,13 @@ body {
 }
 
 .sets-btn {
-  width: 36px;
-  height: 36px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   border: 1.5px solid var(--border);
   background: var(--surface);
   color: var(--text);
-  font-size: 20px;
+  font-size: 28px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -446,6 +446,10 @@ body {
   font-size: 28px;
   letter-spacing: 1px;
   color: var(--accent);
+}
+
+[data-theme="dark"] .stat-value {
+  color: var(--text);
 }
 
 .stat-label {

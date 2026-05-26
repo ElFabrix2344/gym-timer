@@ -19,7 +19,6 @@ const btnTheme        = document.getElementById('btnTheme');
 const timeDisplay     = document.getElementById('timeDisplay');
 const timeLabel       = document.getElementById('timeLabel');
 const ringProgress    = document.getElementById('ringProgress');
-const phaseBadge      = document.getElementById('phaseBadge');
 const setsDisplay     = document.getElementById('setsDisplay');
 const setsDots        = document.getElementById('setsDots');
 const statSets        = document.getElementById('statSets');
@@ -163,8 +162,6 @@ function startRest() {
   phase = 'rest';
   remaining = totalDuration = restDuration;
   running = true;
-  phaseBadge.textContent = 'DESCANSO';
-  phaseBadge.className = 'phase-badge rest';
   timeLabel.textContent = 'DESCANSO';
   btnPlay.classList.add('rest-mode');
   ringProgress.classList.add('rest-mode');
@@ -187,8 +184,6 @@ function tick() {
     if ('vibrate' in navigator) navigator.vibrate([200, 100, 200, 100, 200]);
     flashScreen();
     showToast('¡A TRABAJAR!');
-    phaseBadge.textContent = 'TRABAJO';
-    phaseBadge.className = 'phase-badge work';
     timeLabel.textContent = 'DESCANSO';
     btnPlay.classList.remove('rest-mode');
     ringProgress.classList.remove('rest-mode');
@@ -223,8 +218,6 @@ function reset() {
   remaining = totalDuration = restDuration;
   updateDisplay();
   setRing(1);
-  phaseBadge.textContent = 'TRABAJO';
-  phaseBadge.className = 'phase-badge work';
   timeLabel.textContent = 'DESCANSO';
   btnPlay.classList.remove('rest-mode');
   ringProgress.classList.remove('rest-mode');
