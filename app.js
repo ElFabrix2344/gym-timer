@@ -7,7 +7,10 @@ let interval      = null;
 let phase         = 'idle';
 let sets          = 0;
 let totalRests    = 0;
-let sessionStart  = null;
+let sessionStart     = null;
+let sessionClockStart    = null;
+let sessionClockInterval = null;
+let prCelebTimeout       = null;
 
 const CIRCUMFERENCE = 2 * Math.PI * 118;
 
@@ -41,12 +44,29 @@ const btnHistory      = document.getElementById('btnHistory');
 const historyPanel    = document.getElementById('historyPanel');
 const btnCloseHistory = document.getElementById('btnCloseHistory');
 const historyContent  = document.getElementById('historyContent');
+const sessionClock        = document.getElementById('sessionClock');
+const sessionClockDisplay = document.getElementById('sessionClockDisplay');
+const btnEndSession       = document.getElementById('btnEndSession');
+const prCelebration       = document.getElementById('prCelebration');
+const prCelName           = document.getElementById('prCelName');
+const prCelWeight         = document.getElementById('prCelWeight');
+const prPanel             = document.getElementById('prPanel');
+const prPanelContent      = document.getElementById('prPanelContent');
+const btnPRs              = document.getElementById('btnPRs');
+const btnClosePr          = document.getElementById('btnClosePr');
 
 // ─── Timer helpers ────────────────────────────────────────────────────────────
 function fmtTime(s) {
   const m = Math.floor(s / 60);
   const sec = s % 60;
   return m > 0 ? `${m}:${String(sec).padStart(2, '0')}` : `${sec}`;
+}
+
+function fmtDuration(totalSec) {
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
 function setRing(ratio) {
@@ -106,6 +126,31 @@ function updateDots() {
     d.className = 'dot done';
     setsDots.appendChild(d);
   }
+}
+
+function startSessionClock() {
+  if (sessionClockInterval) return;
+  sessionClockStart = Date.now();
+  sessionClock.classList.add('active');
+  sessionClockDisplay.textContent = fmtDuration(0);
+  sessionClockInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - sessionClockStart) / 1000);
+    sessionClockDisplay.textContent = fmtDuration(elapsed);
+  }, 1000);
+}
+
+function endSession() {
+  if (!sessionClockStart) return;
+  const elapsed = Math.floor((Date.now() - sessionClockStart) / 1000);
+  const meta = loadSessionMeta();
+  meta[getTodayKey()] = fmtDuration(elapsed);
+  saveSessionMeta(meta);
+  clearInterval(sessionClockInterval);
+  sessionClockInterval = null;
+  sessionClockStart = null;
+  sessionClock.classList.remove('active');
+  sessionClockDisplay.textContent = '00:00:00';
+  showToast('Sesión terminada');
 }
 
 function updateSessionTime() {
@@ -189,6 +234,7 @@ function reset() {
 
 function registerSet() {
   if (!sessionStart) sessionStart = Date.now();
+  if (!sessionClockStart) startSessionClock();
   sets++;
   setsDisplay.textContent = sets;
   statSets.textContent = sets;
@@ -277,6 +323,125 @@ function saveLog(log) {
   localStorage.setItem('gym-timer-log', JSON.stringify(log));
 }
 
+function loadSessionMeta() {
+  try { return JSON.parse(localStorage.getItem('gym-timer-session-meta') || '{}'); }
+  catch(e) { return {}; }
+}
+
+function saveSessionMeta(meta) {
+  localStorage.setItem('gym-timer-session-meta', JSON.stringify(meta));
+}
+
+// ─── PR helpers ───────────────────────────────────────────────────────────────
+function getPRForExercise(name) {
+  const lower = name.toLowerCase();
+  let maxWeight = 0;
+  let maxDate   = '';
+  let maxUnit   = 'kg';
+
+  const fn = loadFitNotes();
+  if (fn && fn.exercises) {
+    for (const [exName, sessions] of Object.entries(fn.exercises)) {
+      if (exName.toLowerCase() !== lower) continue;
+      for (const session of sessions) {
+        for (const set of session.sets) {
+          const w = parseFloat(set.weight);
+          if (w > maxWeight) { maxWeight = w; maxDate = session.date; maxUnit = set.weightUnit || 'kg'; }
+        }
+      }
+    }
+  }
+
+  const log = loadLog();
+  for (const [dateKey, entries] of Object.entries(log)) {
+    for (const entry of entries) {
+      if (!entry.exercise || entry.exercise.toLowerCase() !== lower) continue;
+      const w = parseFloat(entry.weight);
+      if (w > maxWeight) { maxWeight = w; maxDate = dateKey; maxUnit = 'kg'; }
+    }
+  }
+
+  return maxWeight > 0 ? { weight: maxWeight, unit: maxUnit, date: maxDate } : null;
+}
+
+function getAllPRs() {
+  const exerciseMap = new Map();
+
+  const fn = loadFitNotes();
+  if (fn && fn.exercises) {
+    for (const name of Object.keys(fn.exercises)) exerciseMap.set(name.toLowerCase(), name);
+  }
+
+  const log = loadLog();
+  for (const entries of Object.values(log)) {
+    for (const entry of entries) {
+      if (entry.exercise) {
+        const lower = entry.exercise.toLowerCase();
+        if (!exerciseMap.has(lower)) exerciseMap.set(lower, entry.exercise);
+      }
+    }
+  }
+
+  const prs = [];
+  for (const displayName of exerciseMap.values()) {
+    const pr = getPRForExercise(displayName);
+    if (pr) prs.push({ name: displayName, ...pr });
+  }
+  return prs.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function showPRCelebration(name, weight, unit) {
+  prCelName.textContent   = name;
+  prCelWeight.textContent = weight + (unit ? ' ' + unit : '');
+  prCelebration.classList.add('show');
+  clearTimeout(prCelebTimeout);
+  prCelebTimeout = setTimeout(() => prCelebration.classList.remove('show'), 3500);
+}
+
+function checkPR(name, weightStr) {
+  const newWeight = parseFloat(weightStr);
+  if (!(newWeight > 0)) return;
+  const pr = getPRForExercise(name);
+  if (pr && newWeight > pr.weight) showPRCelebration(name, newWeight, 'kg');
+}
+
+function renderPRPanel() {
+  prPanelContent.innerHTML = '';
+  const prs = getAllPRs();
+
+  if (prs.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'pr-empty';
+    empty.textContent = 'Sin récords aún. Importa un CSV de FitNotes o registra ejercicios con peso.';
+    prPanelContent.appendChild(empty);
+    return;
+  }
+
+  prs.forEach(pr => {
+    const row = document.createElement('div');
+    row.className = 'pr-row';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'pr-row-name';
+    nameEl.textContent = pr.name;
+
+    const right = document.createElement('div');
+    right.className = 'pr-row-right';
+
+    const weightEl = document.createElement('span');
+    weightEl.className = 'pr-row-weight';
+    weightEl.textContent = pr.weight + ' ' + (pr.unit || 'kg');
+
+    const dateEl = document.createElement('span');
+    dateEl.className = 'pr-row-date';
+    dateEl.textContent = pr.date ? formatDateKey(pr.date) : '';
+
+    right.append(weightEl, dateEl);
+    row.append(nameEl, right);
+    prPanelContent.appendChild(row);
+  });
+}
+
 function saveEntry() {
   const name = logExercise.value.trim();
   if (!name) {
@@ -296,6 +461,10 @@ function saveEntry() {
     reps:     logReps.value.trim(),
     time:     new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
   };
+
+  checkPR(name, entry.weight);
+
+  if (!sessionClockStart) startSessionClock();
 
   const log = loadLog();
   const key = getTodayKey();
@@ -439,7 +608,9 @@ function renderHistory() {
 
     const meta = document.createElement('span');
     meta.className = 'history-day-meta';
-    meta.textContent = entries.length + ' ejercicio' + (entries.length !== 1 ? 's' : '');
+    const sessionMeta = loadSessionMeta();
+    const dur = sessionMeta[key];
+    meta.textContent = entries.length + ' ejercicio' + (entries.length !== 1 ? 's' : '') + (dur ? ' · ' + dur : '');
 
     const delDay = document.createElement('button');
     delDay.className = 'history-day-delete';
@@ -791,6 +962,25 @@ btnCloseFn.addEventListener('click', () => {
   document.body.style.overflow = '';
   fnTitle.textContent = 'FITNOTES';
   if (fnViewExercise.style.display !== 'none') showFnView('search');
+});
+
+btnEndSession.addEventListener('click', endSession);
+
+// ─── PR listeners ─────────────────────────────────────────────────────────────
+btnPRs.addEventListener('click', () => {
+  renderPRPanel();
+  prPanel.classList.add('open');
+  document.body.style.overflow = 'hidden';
+});
+
+btnClosePr.addEventListener('click', () => {
+  prPanel.classList.remove('open');
+  document.body.style.overflow = '';
+});
+
+prCelebration.addEventListener('click', () => {
+  clearTimeout(prCelebTimeout);
+  prCelebration.classList.remove('show');
 });
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

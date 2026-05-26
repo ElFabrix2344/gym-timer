@@ -7,7 +7,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#111111">
+  <meta name="theme-color" content="#0a0a0a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="VOLTA">
@@ -23,6 +23,16 @@
 
 <div class="flash" id="flash"></div>
 <div class="complete-toast" id="toast">¡SERIE COMPLETADA!</div>
+
+<!-- PR celebration overlay -->
+<div class="pr-celebration" id="prCelebration">
+  <div class="pr-cel-card">
+    <div class="pr-cel-label">NUEVO RÉCORD PERSONAL</div>
+    <div class="pr-cel-name" id="prCelName"></div>
+    <div class="pr-cel-weight" id="prCelWeight"></div>
+    <div class="pr-cel-sub">personal best</div>
+  </div>
+</div>
 
 <!-- History panel -->
 <div class="history-panel" id="historyPanel">
@@ -73,6 +83,15 @@
       <div class="fn-exercise-content" id="fnExerciseContent"></div>
     </div>
   </div>
+</div>
+
+<!-- PR panel -->
+<div class="pr-panel" id="prPanel">
+  <div class="pr-panel-header">
+    <span class="pr-panel-title">RÉCORDS</span>
+    <button class="btn-close-pr" id="btnClosePr">✕</button>
+  </div>
+  <div class="pr-panel-content" id="prPanelContent"></div>
 </div>
 
 <div class="container">
@@ -144,6 +163,15 @@
   </div>
 
   <!-- ── Session log ──────────────────────────────────── -->
+  <div class="session-clock" id="sessionClock">
+    <div class="session-clock-left">
+      <span class="session-clock-dot"></span>
+      <span class="session-clock-label">EN SESIÓN</span>
+      <span class="session-clock-time" id="sessionClockDisplay">00:00:00</span>
+    </div>
+    <button class="btn-end-session" id="btnEndSession">Terminar sesión</button>
+  </div>
+
   <div class="log-section">
     <div class="section-label">Registrar ejercicio</div>
 
@@ -168,6 +196,7 @@
 
     <button class="btn-history" id="btnHistory">Ver sesiones anteriores</button>
     <button class="btn-fitnotes" id="btnFitNotes">Historial FitNotes</button>
+    <button class="btn-prs" id="btnPRs">Ver récords personales</button>
   </div>
 
 </div>
