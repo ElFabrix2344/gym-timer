@@ -46,6 +46,7 @@ const historyContent  = document.getElementById('historyContent');
 const sessionClock        = document.getElementById('sessionClock');
 const sessionClockDisplay = document.getElementById('sessionClockDisplay');
 const btnEndSession       = document.getElementById('btnEndSession');
+const btnResetClock       = document.getElementById('btnResetClock');
 const prCelebration       = document.getElementById('prCelebration');
 const prCelName           = document.getElementById('prCelName');
 const prCelWeight         = document.getElementById('prCelWeight');
@@ -138,18 +139,53 @@ function startSessionClock() {
   }, 1000);
 }
 
+function resetSessionClock() {
+  if (!sessionClockStart) return;
+  sessionClockStart = Date.now();
+  sessionClockDisplay.textContent = fmtDuration(0);
+}
+
 function endSession() {
   if (!sessionClockStart) return;
-  const elapsed = Math.floor((Date.now() - sessionClockStart) / 1000);
+
+  const elapsed  = Math.floor((Date.now() - sessionClockStart) / 1000);
+  const dateKey  = getTodayKey();
+  const log      = loadLog();
+  const entries  = log[dateKey] || [];
+
+  const confirmed = confirm(
+    `¿Terminar la sesión?\n\n` +
+    `⏱  Duración: ${fmtDuration(elapsed)}\n` +
+    `💪 Series: ${sets}   Descansos: ${totalRests}\n` +
+    `📋 Ejercicios: ${entries.length}\n\n` +
+    `Los datos quedarán guardados en el historial.`
+  );
+  if (!confirmed) return;
+
+  // Persist: save duration + summary to session meta
   const meta = loadSessionMeta();
-  meta[getTodayKey()] = fmtDuration(elapsed);
+  meta[dateKey] = { duration: fmtDuration(elapsed), sets, rests: totalRests };
   saveSessionMeta(meta);
+
+  // Stop clock
   clearInterval(sessionClockInterval);
   sessionClockInterval = null;
-  sessionClockStart = null;
+  sessionClockStart    = null;
   sessionClock.classList.remove('active');
   sessionClockDisplay.textContent = '00:00:00';
-  showToast('Sesión terminada');
+
+  // Reset all counters
+  sets        = 0;
+  totalRests  = 0;
+  sessionStart = null;
+  setsDisplay.textContent  = '0';
+  statSets.textContent     = '0';
+  statRests.textContent    = '0';
+  statTime.textContent     = '0m';
+  updateDots();
+  reset();
+
+  showToast('Sesión guardada ✓');
 }
 
 function updateSessionTime() {
@@ -181,7 +217,11 @@ function tick() {
     phase = 'idle';
     statRests.textContent = ++totalRests;
     beep('end');
+    console.log('[VOLTA] Timer en cero — ejecutando vibración');
     if ('vibrate' in navigator) navigator.vibrate([200, 100, 200, 100, 200]);
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'SHOW_NOTIFICATION' });
+    }
     flashScreen();
     showToast('¡A TRABAJAR!');
     timeLabel.textContent = 'DESCANSO';
@@ -602,7 +642,8 @@ function renderHistory() {
     const meta = document.createElement('span');
     meta.className = 'history-day-meta';
     const sessionMeta = loadSessionMeta();
-    const dur = sessionMeta[key];
+    const sm  = sessionMeta[key];
+    const dur = sm ? (typeof sm === 'object' ? sm.duration : sm) : null;
     meta.textContent = entries.length + ' ejercicio' + (entries.length !== 1 ? 's' : '') + (dur ? ' · ' + dur : '');
 
     const delDay = document.createElement('button');
@@ -958,6 +999,7 @@ btnCloseFn.addEventListener('click', () => {
 });
 
 btnEndSession.addEventListener('click', endSession);
+btnResetClock.addEventListener('click', resetSessionClock);
 
 // ─── PR listeners ─────────────────────────────────────────────────────────────
 btnPRs.addEventListener('click', () => {
@@ -981,3 +1023,7 @@ applyTheme(localStorage.getItem('gym-timer-theme') || 'light');
 updateDisplay();
 setRing(1);
 renderCurrentSession();
+
+if ('Notification' in window && Notification.permission === 'default') {
+  Notification.requestPermission();
+}

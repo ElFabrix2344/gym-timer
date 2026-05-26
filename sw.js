@@ -28,6 +28,19 @@ self.addEventListener('activate', e => {
   );
 });
 
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SHOW_NOTIFICATION') {
+    self.registration.showNotification('¡Descanso terminado!', {
+      body: 'Vuelve al trabajo.',
+      icon: './icons/icon.svg',
+      badge: './icons/icon-maskable.svg',
+      vibrate: [200, 100, 200, 100, 200],
+      tag: 'volta-timer',
+      renotify: true,
+    });
+  }
+});
+
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
