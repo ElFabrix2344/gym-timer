@@ -128,11 +128,33 @@
     <div class="routine-panel-header">
       <button class="btn-routine-back" id="btnRoutineBack">← Volver</button>
       <span class="routine-panel-title" id="routineTitle">PUSH</span>
-      <button class="btn-close-routine" id="btnCloseRoutineEx">✕</button>
+      <div class="routine-header-actions">
+        <button class="btn-routine-edit" id="btnRoutineEdit">Editar</button>
+        <button class="btn-close-routine" id="btnCloseRoutineEx">✕</button>
+      </div>
     </div>
     <div class="routine-exercise-list" id="routineExerciseList"></div>
     <div class="routine-footer">
       <button class="btn-routine-start" id="btnRoutineStart">Empezar sesión</button>
+    </div>
+  </div>
+
+  <!-- View: edit routine -->
+  <div class="routine-view" id="routineViewEdit" style="display:none">
+    <div class="routine-panel-header">
+      <button class="btn-routine-back" id="btnRoutineBackEdit">← Volver</button>
+      <span class="routine-panel-title" id="routineEditTitle">EDITAR</span>
+      <button class="btn-routine-save" id="btnRoutineSave">Guardar</button>
+    </div>
+    <div class="routine-edit-list" id="routineEditList"></div>
+    <div class="routine-edit-footer">
+      <div class="routine-add-row">
+        <input class="routine-add-input" id="routineAddInput" type="text"
+               placeholder="Añadir ejercicio..." autocomplete="off" list="fnExercisesList"/>
+        <datalist id="fnExercisesList"></datalist>
+        <button class="btn-routine-add" id="btnRoutineAdd">+</button>
+      </div>
+      <button class="btn-routine-reset" id="btnRoutineReset">Restaurar desde FitNotes</button>
     </div>
   </div>
 
@@ -227,18 +249,8 @@
 
     <div class="log-form" id="logForm">
       <input class="log-input-wide" id="logExercise" type="text" placeholder="Nombre del ejercicio" autocomplete="off"/>
-      <div class="log-grid">
-        <div class="log-field">
-          <input class="log-input" id="logWeight" type="text" placeholder="Peso"/>
-          <span class="log-unit">kg</span>
-        </div>
-        <div class="log-field">
-          <input class="log-input" id="logSets" type="number" min="1" max="99" placeholder="Series"/>
-        </div>
-        <div class="log-field">
-          <input class="log-input" id="logReps" type="text" placeholder="Reps"/>
-        </div>
-      </div>
+      <div class="log-sets-list" id="logSetsList"></div>
+      <button class="btn-log-add-set" id="btnLogAddSet" type="button">+ Añadir serie</button>
       <button class="btn-log-save" id="btnLogSave">Guardar ejercicio</button>
     </div>
 

@@ -671,6 +671,129 @@ body {
   transform: translateY(0);
 }
 
+/* ─── Log set rows ───────────────────────────────────────────────────────── */
+.log-sets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.log-set-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-set-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--border);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.log-set-field {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.log-set-weight,
+.log-set-reps {
+  width: 100%;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  padding: 10px 28px 10px 10px;
+  outline: none;
+  transition: border-color 0.2s;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  user-select: auto;
+  -moz-appearance: textfield;
+}
+
+.log-set-weight::-webkit-inner-spin-button,
+.log-set-weight::-webkit-outer-spin-button,
+.log-set-reps::-webkit-inner-spin-button,
+.log-set-reps::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.log-set-weight:focus,
+.log-set-reps:focus {
+  border-color: var(--accent);
+}
+
+.log-set-weight::placeholder,
+.log-set-reps::placeholder {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+}
+
+.log-set-unit {
+  position: absolute;
+  right: 8px;
+  font-size: 10px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.log-set-x {
+  font-size: 13px;
+  color: var(--muted);
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.btn-log-del-set {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-log-del-set:hover {
+  color: var(--danger);
+}
+
+.btn-log-add-set {
+  width: 100%;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1.5px dashed var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-log-add-set:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 /* ─── Session log list ───────────────────────────────────────────────────── */
 .session-log {
   display: flex;
@@ -731,7 +854,10 @@ body {
 .entry-chips {
   display: flex;
   gap: 4px;
+  flex-wrap: wrap;
   flex-shrink: 0;
+  max-width: 55%;
+  justify-content: flex-end;
 }
 
 .chip {
@@ -1922,4 +2048,178 @@ body {
 
 .btn-routine-start:active {
   transform: translateY(0);
+}
+
+/* Editar button + actions wrapper */
+.routine-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-routine-edit {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'DM Sans', sans-serif;
+  background: transparent;
+  white-space: nowrap;
+}
+
+.btn-routine-edit:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Save button (edit header) */
+.btn-routine-save {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  border: 1.5px solid var(--accent);
+  border-radius: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'DM Sans', sans-serif;
+  background: transparent;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-routine-save:hover {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+/* Edit list */
+.routine-edit-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.routine-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.routine-edit-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  padding: 10px 12px;
+  outline: none;
+  transition: border-color 0.2s;
+  user-select: auto;
+}
+
+.routine-edit-input:focus {
+  border-color: var(--accent);
+}
+
+.btn-routine-del {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 22px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-routine-del:hover {
+  color: var(--danger);
+}
+
+/* Edit footer */
+.routine-edit-footer {
+  padding: 12px 24px 40px;
+  flex-shrink: 0;
+  border-top: 1.5px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.routine-add-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.routine-add-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  padding: 12px 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  user-select: auto;
+}
+
+.routine-add-input:focus { border-color: var(--accent); }
+.routine-add-input::placeholder { color: var(--muted); }
+
+.btn-routine-add {
+  width: 46px;
+  height: 46px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1;
+}
+
+.btn-routine-add:hover { opacity: 0.85; }
+
+.btn-routine-reset {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  color: var(--muted);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-routine-reset:hover {
+  border-color: var(--danger);
+  color: var(--danger);
 }

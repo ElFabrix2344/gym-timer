@@ -37,9 +37,8 @@ const toast           = document.getElementById('toast');
 const setsDown        = document.getElementById('setsDown');
 const setsUp          = document.getElementById('setsUp');
 const logExercise     = document.getElementById('logExercise');
-const logWeight       = document.getElementById('logWeight');
-const logSets         = document.getElementById('logSets');
-const logReps         = document.getElementById('logReps');
+const logSetsList     = document.getElementById('logSetsList');
+const btnLogAddSet    = document.getElementById('btnLogAddSet');
 const btnLogSave      = document.getElementById('btnLogSave');
 const sessionLog      = document.getElementById('sessionLog');
 const btnHistory      = document.getElementById('btnHistory');
@@ -67,6 +66,15 @@ const btnRoutineStart      = document.getElementById('btnRoutineStart');
 const btnRoutineBack       = document.getElementById('btnRoutineBack');
 const sessionPlan          = document.getElementById('sessionPlan');
 const planChips            = document.getElementById('planChips');
+const routineViewEdit      = document.getElementById('routineViewEdit');
+const btnRoutineEdit       = document.getElementById('btnRoutineEdit');
+const btnRoutineBackEdit   = document.getElementById('btnRoutineBackEdit');
+const btnRoutineSave       = document.getElementById('btnRoutineSave');
+const routineEditList      = document.getElementById('routineEditList');
+const routineEditTitle     = document.getElementById('routineEditTitle');
+const routineAddInput      = document.getElementById('routineAddInput');
+const btnRoutineAdd        = document.getElementById('btnRoutineAdd');
+const btnRoutineReset      = document.getElementById('btnRoutineReset');
 
 // ─── Timer helpers ────────────────────────────────────────────────────────────
 function fmtTime(s) {
@@ -408,8 +416,15 @@ function getPRForExercise(name) {
   for (const [dateKey, entries] of Object.entries(log)) {
     for (const entry of entries) {
       if (!entry.exercise || entry.exercise.toLowerCase() !== lower) continue;
-      const w = parseFloat(entry.weight);
-      if (w > maxWeight) { maxWeight = w; maxDate = dateKey; maxUnit = 'kg'; }
+      if (Array.isArray(entry.sets)) {
+        for (const s of entry.sets) {
+          const w = parseFloat(s.weight);
+          if (w > maxWeight) { maxWeight = w; maxDate = dateKey; maxUnit = 'kg'; }
+        }
+      } else {
+        const w = parseFloat(entry.weight);
+        if (w > maxWeight) { maxWeight = w; maxDate = dateKey; maxUnit = 'kg'; }
+      }
     }
   }
 
@@ -494,6 +509,85 @@ function renderPRPanel() {
   });
 }
 
+// ─── Log set row helpers ──────────────────────────────────────────────────────
+function addLogSetRow(weight = '', reps = '') {
+  const row = document.createElement('div');
+  row.className = 'log-set-row';
+
+  const num = document.createElement('span');
+  num.className = 'log-set-num';
+  num.textContent = logSetsList.children.length + 1;
+
+  const wField = document.createElement('div');
+  wField.className = 'log-set-field';
+  const wInput = document.createElement('input');
+  wInput.className = 'log-set-weight';
+  wInput.type = 'number';
+  wInput.inputMode = 'numeric';
+  wInput.min = '0';
+  wInput.step = '0.5';
+  wInput.placeholder = 'Peso';
+  if (weight) wInput.value = weight;
+  const wUnit = document.createElement('span');
+  wUnit.className = 'log-set-unit';
+  wUnit.textContent = 'kg';
+  wField.append(wInput, wUnit);
+
+  const xSep = document.createElement('span');
+  xSep.className = 'log-set-x';
+  xSep.textContent = '×';
+
+  const rField = document.createElement('div');
+  rField.className = 'log-set-field';
+  const rInput = document.createElement('input');
+  rInput.className = 'log-set-reps';
+  rInput.type = 'number';
+  rInput.inputMode = 'numeric';
+  rInput.min = '1';
+  rInput.placeholder = 'Reps';
+  if (reps) rInput.value = reps;
+  rField.append(rInput);
+
+  const del = document.createElement('button');
+  del.className = 'btn-log-del-set';
+  del.type = 'button';
+  del.textContent = '×';
+  del.title = 'Eliminar serie';
+  del.addEventListener('click', () => {
+    if (logSetsList.children.length > 1) {
+      row.remove();
+      renumberSetRows();
+    }
+  });
+
+  wInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); rInput.focus(); }
+  });
+  rInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const allRows = Array.from(logSetsList.querySelectorAll('.log-set-row'));
+      if (row === allRows[allRows.length - 1]) {
+        // last row → add new row pre-filled with same weight
+        addLogSetRow(wInput.value.trim());
+        const newWeights = logSetsList.querySelectorAll('.log-set-weight');
+        newWeights[newWeights.length - 1].focus();
+      } else {
+        const idx = allRows.indexOf(row);
+        allRows[idx + 1].querySelector('.log-set-weight').focus();
+      }
+    }
+  });
+
+  row.append(num, wField, xSep, rField, del);
+  logSetsList.appendChild(row);
+  return row;
+}
+
+function renumberSetRows() {
+  logSetsList.querySelectorAll('.log-set-num').forEach((n, i) => n.textContent = i + 1);
+}
+
 function saveEntry() {
   const name = logExercise.value.trim();
   if (!name) {
@@ -505,16 +599,21 @@ function saveEntry() {
     return;
   }
 
+  const rows = logSetsList.querySelectorAll('.log-set-row');
+  const setsData = Array.from(rows).map(r => ({
+    weight: r.querySelector('.log-set-weight').value.trim(),
+    reps:   r.querySelector('.log-set-reps').value.trim(),
+  })).filter(s => s.weight || s.reps);
+
   const entry = {
     id:       Date.now(),
     exercise: name,
-    weight:   logWeight.value.trim(),
-    sets:     logSets.value.trim(),
-    reps:     logReps.value.trim(),
+    sets:     setsData,
     time:     new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
   };
 
-  checkPR(name, entry.weight);
+  const maxW = setsData.reduce((mx, s) => Math.max(mx, parseFloat(s.weight) || 0), 0);
+  if (maxW > 0) checkPR(name, String(maxW));
 
   if (!sessionClockStart) startSessionClock();
 
@@ -525,9 +624,8 @@ function saveEntry() {
   saveLog(log);
 
   logExercise.value = '';
-  logWeight.value = '';
-  logSets.value = '';
-  logReps.value = '';
+  logSetsList.innerHTML = '';
+  addLogSetRow();
   logExercise.focus();
 
   renderCurrentSession();
@@ -563,23 +661,36 @@ function buildEntryRow(entry, dateKey) {
   const chips = document.createElement('div');
   chips.className = 'entry-chips';
 
-  if (entry.weight) {
-    const c = document.createElement('span');
-    c.className = 'chip';
-    c.textContent = entry.weight + 'kg';
-    chips.appendChild(c);
-  }
-  if (entry.sets) {
-    const c = document.createElement('span');
-    c.className = 'chip';
-    c.textContent = entry.sets + 's';
-    chips.appendChild(c);
-  }
-  if (entry.reps) {
-    const c = document.createElement('span');
-    c.className = 'chip';
-    c.textContent = entry.reps + 'r';
-    chips.appendChild(c);
+  if (Array.isArray(entry.sets)) {
+    entry.sets.forEach(s => {
+      const c = document.createElement('span');
+      c.className = 'chip';
+      const parts = [];
+      if (s.weight) parts.push(s.weight + 'kg');
+      if (s.reps)   parts.push(s.reps + 'r');
+      c.textContent = parts.join(' × ') || '—';
+      chips.appendChild(c);
+    });
+  } else {
+    // backward compat: old format {weight, sets (string), reps}
+    if (entry.weight) {
+      const c = document.createElement('span');
+      c.className = 'chip';
+      c.textContent = entry.weight + 'kg';
+      chips.appendChild(c);
+    }
+    if (entry.sets) {
+      const c = document.createElement('span');
+      c.className = 'chip';
+      c.textContent = entry.sets + 's';
+      chips.appendChild(c);
+    }
+    if (entry.reps) {
+      const c = document.createElement('span');
+      c.className = 'chip';
+      c.textContent = entry.reps + 'r';
+      chips.appendChild(c);
+    }
   }
 
   const time = document.createElement('span');
@@ -694,16 +805,19 @@ btnCloseHistory.addEventListener('click', () => {
 btnLogSave.addEventListener('click', saveEntry);
 
 logExercise.addEventListener('keydown', e => {
-  if (e.key === 'Enter') logWeight.focus();
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const firstWeight = logSetsList.querySelector('.log-set-weight');
+    if (firstWeight) firstWeight.focus();
+  }
 });
-logWeight.addEventListener('keydown', e => {
-  if (e.key === 'Enter') logSets.focus();
-});
-logSets.addEventListener('keydown', e => {
-  if (e.key === 'Enter') logReps.focus();
-});
-logReps.addEventListener('keydown', e => {
-  if (e.key === 'Enter') saveEntry();
+
+btnLogAddSet.addEventListener('click', () => {
+  const allWeights = logSetsList.querySelectorAll('.log-set-weight');
+  const lastWeight = allWeights.length ? allWeights[allWeights.length - 1].value.trim() : '';
+  addLogSetRow(lastWeight);
+  const newWeights = logSetsList.querySelectorAll('.log-set-weight');
+  newWeights[newWeights.length - 1].focus();
 });
 
 // ─── FitNotes – elements ──────────────────────────────────────────────────────
@@ -1060,9 +1174,44 @@ function getExercisesForRoutine(type) {
   });
 }
 
+function loadCustomRoutines() {
+  try { return JSON.parse(localStorage.getItem('gym-timer-custom-routines') || '{}'); }
+  catch(e) { return {}; }
+}
+
+function saveCustomRoutines(r) {
+  localStorage.setItem('gym-timer-custom-routines', JSON.stringify(r));
+}
+
+// Returns enriched exercise list: custom if exists, else FitNotes-derived
+function getRoutineExercises(type) {
+  const custom = loadCustomRoutines();
+  if (custom[type] && custom[type].length > 0) {
+    const fn = loadFitNotes();
+    return custom[type].map(name => {
+      let lastWeight = 0, lastReps = 0, lastUnit = 'kg';
+      if (fn && fn.exercises) {
+        for (const [exName, sessions] of Object.entries(fn.exercises)) {
+          if (exName.toLowerCase() !== name.toLowerCase()) continue;
+          const lastSet = sessions[0]?.sets[sessions[0].sets.length - 1];
+          if (lastSet) {
+            lastWeight = parseFloat(lastSet.weight) || 0;
+            lastReps   = parseInt(lastSet.reps)    || 0;
+            lastUnit   = lastSet.weightUnit || 'kg';
+          }
+          break;
+        }
+      }
+      return { name, category: '', lastWeight, lastReps, lastUnit };
+    });
+  }
+  return getExercisesForRoutine(type);
+}
+
 function showRoutineView(view) {
   routineViewType.style.display      = view === 'type'      ? 'flex' : 'none';
   routineViewExercises.style.display = view === 'exercises' ? 'flex' : 'none';
+  routineViewEdit.style.display      = view === 'edit'      ? 'flex' : 'none';
 }
 
 function updateRoutineStartBtn() {
@@ -1090,41 +1239,43 @@ function renderRoutineExercises(type) {
   currentRoutineType = type;
   routineTitle.textContent = type.toUpperCase();
 
-  const fn = loadFitNotes();
-  const exCount  = fn && fn.exercises  ? Object.keys(fn.exercises).length  : 0;
-  const catCount = fn && fn.categories ? Object.keys(fn.categories).length : 0;
-  console.log('[VOLTA] routine:', type, '| exercises:', exCount, '| categories:', catCount);
+  const custom = loadCustomRoutines();
+  const hasCustom = custom[type] && custom[type].length > 0;
 
-  // Case 1: no FitNotes data at all
-  if (!fn || exCount === 0) {
-    showRoutineEmpty(
-      'Sin datos de FitNotes',
-      'Importa tu historial desde "Historial FitNotes" para ver tus ejercicios aquí.'
-    );
-    updateRoutineStartBtn();
-    showRoutineView('exercises');
-    return;
+  // Only check FitNotes state when no custom routine exists
+  if (!hasCustom) {
+    const fn = loadFitNotes();
+    const exCount  = fn && fn.exercises  ? Object.keys(fn.exercises).length  : 0;
+    const catCount = fn && fn.categories ? Object.keys(fn.categories).length : 0;
+    console.log('[VOLTA] routine:', type, '| fn exercises:', exCount, '| categories:', catCount);
+
+    if (!fn || exCount === 0) {
+      showRoutineEmpty(
+        'Sin datos de FitNotes',
+        'Importa tu historial desde "Historial FitNotes", o pulsa Editar para añadir ejercicios manualmente.'
+      );
+      updateRoutineStartBtn();
+      showRoutineView('exercises');
+      return;
+    }
+    if (catCount === 0) {
+      showRoutineEmpty(
+        'Reimporta tu historial',
+        'Tu CSV fue importado con una versión anterior. Ve a "Historial FitNotes" → Importar CSV, o pulsa Editar para añadir ejercicios manualmente.'
+      );
+      updateRoutineStartBtn();
+      showRoutineView('exercises');
+      return;
+    }
   }
 
-  // Case 2: data exists but without categories (imported before category support)
-  if (catCount === 0) {
-    showRoutineEmpty(
-      'Reimporta tu historial',
-      'Tu CSV fue importado con una versión anterior de VOLTA. Ve a "Historial FitNotes" → Importar CSV para activar el filtrado por rutina.'
-    );
-    updateRoutineStartBtn();
-    showRoutineView('exercises');
-    return;
-  }
+  const exercises = getRoutineExercises(type);
+  console.log('[VOLTA]', type, exercises.length, 'exercises', hasCustom ? '(custom)' : '(FitNotes)');
 
-  const exercises = getExercisesForRoutine(type);
-  console.log('[VOLTA] filtered exercises for', type, ':', exercises.length);
-
-  // Case 3: categories exist but none match this routine
   if (exercises.length === 0) {
     showRoutineEmpty(
       `Sin ejercicios para ${type.toUpperCase()}`,
-      'No hay ejercicios de esta categoría en tu historial de FitNotes.'
+      'No hay ejercicios para esta categoría. Pulsa Editar para añadirlos manualmente.'
     );
     updateRoutineStartBtn();
     showRoutineView('exercises');
@@ -1135,7 +1286,7 @@ function renderRoutineExercises(type) {
 
   let currentCat = null;
   exercises.forEach(ex => {
-    if (ex.category !== currentCat) {
+    if (!hasCustom && ex.category && ex.category !== currentCat) {
       currentCat = ex.category;
       const catLabel = document.createElement('div');
       catLabel.className = 'routine-cat-label';
@@ -1195,10 +1346,58 @@ function renderPlanChips() {
     chip.addEventListener('click', () => {
       logExercise.value = name;
       logExercise.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      logWeight.focus();
+      const firstWeight = logSetsList.querySelector('.log-set-weight');
+      if (firstWeight) firstWeight.focus();
     });
     planChips.appendChild(chip);
   });
+}
+
+function addEditRow(name) {
+  const row = document.createElement('div');
+  row.className = 'routine-edit-row';
+
+  const input = document.createElement('input');
+  input.className = 'routine-edit-input';
+  input.type = 'text';
+  input.value = name;
+  input.autocomplete = 'off';
+
+  const del = document.createElement('button');
+  del.className = 'btn-routine-del';
+  del.textContent = '×';
+  del.title = 'Eliminar';
+  del.addEventListener('click', () => row.remove());
+
+  row.append(input, del);
+  routineEditList.appendChild(row);
+  return input;
+}
+
+function renderRoutineEdit(type) {
+  routineEditList.innerHTML = '';
+  routineEditTitle.textContent = 'EDITAR ' + type.toUpperCase();
+
+  // Populate datalist from FitNotes for autocomplete
+  const fnExList = document.getElementById('fnExercisesList');
+  fnExList.innerHTML = '';
+  const fn = loadFitNotes();
+  if (fn && fn.exercises) {
+    Object.keys(fn.exercises).sort().forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      fnExList.appendChild(opt);
+    });
+  }
+
+  // Seed from custom or FitNotes-derived list
+  const custom = loadCustomRoutines();
+  const seedList = (custom[type] && custom[type].length > 0)
+    ? custom[type]
+    : getExercisesForRoutine(type).map(e => e.name);
+
+  seedList.forEach(name => addEditRow(name));
+  showRoutineView('edit');
 }
 
 function closeRoutinePanel() {
@@ -1225,6 +1424,41 @@ document.querySelectorAll('.btn-close-routine').forEach(btn => {
 });
 
 btnRoutineBack.addEventListener('click', () => showRoutineView('type'));
+btnRoutineBackEdit.addEventListener('click', () => showRoutineView('exercises'));
+btnRoutineEdit.addEventListener('click', () => renderRoutineEdit(currentRoutineType));
+
+btnRoutineSave.addEventListener('click', () => {
+  const inputs = routineEditList.querySelectorAll('.routine-edit-input');
+  const names = Array.from(inputs).map(i => i.value.trim()).filter(n => n.length > 0);
+  const routines = loadCustomRoutines();
+  routines[currentRoutineType] = names;
+  saveCustomRoutines(routines);
+  showRoutineView('exercises');
+  renderRoutineExercises(currentRoutineType);
+  showToast('Rutina guardada');
+});
+
+btnRoutineAdd.addEventListener('click', () => {
+  const name = routineAddInput.value.trim();
+  if (!name) return;
+  const input = addEditRow(name);
+  routineAddInput.value = '';
+  routineAddInput.focus();
+  input.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
+
+routineAddInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') btnRoutineAdd.click();
+});
+
+btnRoutineReset.addEventListener('click', () => {
+  if (!confirm(`¿Restaurar la rutina ${currentRoutineType.toUpperCase()} desde FitNotes? Se borrarán los cambios personalizados.`)) return;
+  const routines = loadCustomRoutines();
+  delete routines[currentRoutineType];
+  saveCustomRoutines(routines);
+  renderRoutineEdit(currentRoutineType);
+  showToast('Rutina restaurada');
+});
 
 btnRoutineStart.addEventListener('click', () => {
   currentPlan = Array.from(routineSelectedExercises);
@@ -1261,6 +1495,7 @@ applyTheme(localStorage.getItem('gym-timer-theme') || 'light');
 updateDisplay();
 setRing(1);
 renderCurrentSession();
+addLogSetRow();
 
 if ('Notification' in window && Notification.permission === 'default') {
   Notification.requestPermission();
