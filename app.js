@@ -617,8 +617,6 @@ function saveEntry() {
   const maxW = setsData.reduce((mx, s) => Math.max(mx, parseFloat(s.weight) || 0), 0);
   if (maxW > 0) checkPR(name, String(maxW));
 
-  if (currentPlan.length > 0) markPlanChipDone(name);
-
   if (!sessionClockStart) startSessionClock();
 
   const log = loadLog();
@@ -1344,26 +1342,39 @@ function renderPlanChips() {
   if (currentPlan.length === 0) { sessionPlan.style.display = 'none'; return; }
   sessionPlan.style.display = 'flex';
   currentPlan.forEach(name => {
+    const wrap = document.createElement('div');
+    wrap.className = 'plan-chip-wrap';
+    wrap.dataset.name = name.toLowerCase();
+    if (completedExercises.has(name.toLowerCase())) wrap.classList.add('done');
+
     const chip = document.createElement('button');
     chip.className = 'plan-chip';
-    chip.dataset.name = name.toLowerCase();
+    chip.type = 'button';
     chip.textContent = name;
-    if (completedExercises.has(name.toLowerCase())) chip.classList.add('done');
     chip.addEventListener('click', () => {
       logExercise.value = name;
       logExercise.scrollIntoView({ behavior: 'smooth', block: 'center' });
       const firstWeight = logSetsList.querySelector('.log-set-weight');
       if (firstWeight) firstWeight.focus();
     });
-    planChips.appendChild(chip);
+
+    const check = document.createElement('button');
+    check.className = 'plan-chip-check';
+    check.type = 'button';
+    check.textContent = '✓';
+    check.title = 'Terminar ejercicio';
+    check.addEventListener('click', () => markPlanChipDone(name));
+
+    wrap.append(chip, check);
+    planChips.appendChild(wrap);
   });
 }
 
 function markPlanChipDone(name) {
   const lower = name.toLowerCase();
   completedExercises.add(lower);
-  planChips.querySelectorAll('.plan-chip').forEach(chip => {
-    if (chip.dataset.name === lower) chip.classList.add('done');
+  planChips.querySelectorAll('.plan-chip-wrap').forEach(wrap => {
+    if (wrap.dataset.name === lower) wrap.classList.add('done');
   });
 }
 

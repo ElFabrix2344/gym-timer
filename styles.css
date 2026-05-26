@@ -1741,34 +1741,70 @@ body {
   gap: 8px;
 }
 
-.plan-chip {
-  padding: 8px 14px;
+.plan-chip-wrap {
+  display: flex;
+  align-items: stretch;
   border-radius: 20px;
   border: 1.5px solid var(--border);
   background: var(--surface);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.plan-chip-wrap:hover {
+  border-color: var(--accent);
+}
+
+.plan-chip {
+  padding: 8px 10px 8px 14px;
+  border: none;
+  background: none;
   color: var(--text);
   font-family: 'DM Sans', sans-serif;
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: color 0.15s;
   text-align: left;
 }
 
-.plan-chip:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.plan-chip.done {
-  border-color: var(--accent);
+.plan-chip-check {
+  padding: 6px 10px;
+  border: none;
+  border-left: 1.5px solid var(--border);
+  background: none;
   color: var(--muted);
-  opacity: 0.6;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  font-family: 'DM Sans', sans-serif;
 }
 
-.plan-chip.done::before {
-  content: '✓ ';
+.plan-chip-check:hover {
   color: var(--accent);
+  background: rgba(0,0,0,0.05);
+}
+
+[data-theme="dark"] .plan-chip-check:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+/* done state */
+.plan-chip-wrap.done {
+  border-color: var(--accent);
+  opacity: 0.55;
+}
+
+.plan-chip-wrap.done .plan-chip {
+  color: var(--muted);
+  text-decoration: line-through;
+  cursor: default;
+}
+
+.plan-chip-wrap.done .plan-chip-check {
+  color: var(--accent);
+  border-left-color: rgba(79,158,255,0.3);
 }
 
 /* ─── Routine panel ──────────────────────────────────────────────────────── */
