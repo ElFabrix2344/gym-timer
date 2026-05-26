@@ -14,6 +14,7 @@ let prCelebTimeout          = null;
 let currentPlan             = [];
 let routineSelectedExercises = new Set();
 let currentRoutineType      = null;
+let completedExercises      = new Set();
 
 const CIRCUMFERENCE = 2 * Math.PI * 118;
 
@@ -209,6 +210,7 @@ function endSession() {
 
   btnStartSession.style.display = '';
   currentPlan = [];
+  completedExercises = new Set();
   sessionPlan.style.display = 'none';
   planChips.innerHTML = '';
 
@@ -614,6 +616,8 @@ function saveEntry() {
 
   const maxW = setsData.reduce((mx, s) => Math.max(mx, parseFloat(s.weight) || 0), 0);
   if (maxW > 0) checkPR(name, String(maxW));
+
+  if (currentPlan.length > 0) markPlanChipDone(name);
 
   if (!sessionClockStart) startSessionClock();
 
@@ -1342,7 +1346,9 @@ function renderPlanChips() {
   currentPlan.forEach(name => {
     const chip = document.createElement('button');
     chip.className = 'plan-chip';
+    chip.dataset.name = name.toLowerCase();
     chip.textContent = name;
+    if (completedExercises.has(name.toLowerCase())) chip.classList.add('done');
     chip.addEventListener('click', () => {
       logExercise.value = name;
       logExercise.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1350,6 +1356,14 @@ function renderPlanChips() {
       if (firstWeight) firstWeight.focus();
     });
     planChips.appendChild(chip);
+  });
+}
+
+function markPlanChipDone(name) {
+  const lower = name.toLowerCase();
+  completedExercises.add(lower);
+  planChips.querySelectorAll('.plan-chip').forEach(chip => {
+    if (chip.dataset.name === lower) chip.classList.add('done');
   });
 }
 
@@ -1462,6 +1476,7 @@ btnRoutineReset.addEventListener('click', () => {
 
 btnRoutineStart.addEventListener('click', () => {
   currentPlan = Array.from(routineSelectedExercises);
+  completedExercises = new Set();
   closeRoutinePanel();
   if (!sessionClockStart) startSessionClock();
   renderPlanChips();

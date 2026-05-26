@@ -1760,6 +1760,17 @@ body {
   color: var(--accent);
 }
 
+.plan-chip.done {
+  border-color: var(--accent);
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+.plan-chip.done::before {
+  content: '✓ ';
+  color: var(--accent);
+}
+
 /* ─── Routine panel ──────────────────────────────────────────────────────── */
 .routine-panel {
   position: fixed;
