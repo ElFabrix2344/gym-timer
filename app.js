@@ -10,7 +10,10 @@ let totalRests    = 0;
 let sessionStart     = null;
 let sessionClockStart    = null;
 let sessionClockInterval = null;
-let prCelebTimeout       = null;
+let prCelebTimeout          = null;
+let currentPlan             = [];
+let routineSelectedExercises = new Set();
+let currentRoutineType      = null;
 
 const CIRCUMFERENCE = 2 * Math.PI * 118;
 
@@ -54,6 +57,16 @@ const prPanel             = document.getElementById('prPanel');
 const prPanelContent      = document.getElementById('prPanelContent');
 const btnPRs              = document.getElementById('btnPRs');
 const btnClosePr          = document.getElementById('btnClosePr');
+const btnStartSession      = document.getElementById('btnStartSession');
+const routinePanel         = document.getElementById('routinePanel');
+const routineViewType      = document.getElementById('routineViewType');
+const routineViewExercises = document.getElementById('routineViewExercises');
+const routineTitle         = document.getElementById('routineTitle');
+const routineExerciseList  = document.getElementById('routineExerciseList');
+const btnRoutineStart      = document.getElementById('btnRoutineStart');
+const btnRoutineBack       = document.getElementById('btnRoutineBack');
+const sessionPlan          = document.getElementById('sessionPlan');
+const planChips            = document.getElementById('planChips');
 
 // ─── Timer helpers ────────────────────────────────────────────────────────────
 function fmtTime(s) {
@@ -131,6 +144,7 @@ function updateDots() {
 function startSessionClock() {
   if (sessionClockInterval) return;
   sessionClockStart = Date.now();
+  btnStartSession.style.display = 'none';
   sessionClock.classList.add('active');
   sessionClockDisplay.textContent = fmtDuration(0);
   sessionClockInterval = setInterval(() => {
@@ -184,6 +198,11 @@ function endSession() {
   statTime.textContent     = '0m';
   updateDots();
   reset();
+
+  btnStartSession.style.display = '';
+  currentPlan = [];
+  sessionPlan.style.display = 'none';
+  planChips.innerHTML = '';
 
   showToast('Sesión guardada ✓');
 }
@@ -742,6 +761,7 @@ function processCSV(text) {
   const idx = {
     date:      headers.indexOf('Date'),
     exercise:  headers.indexOf('Exercise'),
+    category:  headers.indexOf('Category'),
     weight:    headers.indexOf('Weight'),
     weightUnit:headers.indexOf('Weight Unit'),
     reps:      headers.indexOf('Reps'),
@@ -752,6 +772,7 @@ function processCSV(text) {
   if (idx.date === -1 || idx.exercise === -1) return null;
 
   const map = {};
+  const categories = {};
   let totalRows = 0;
 
   for (let i = 1; i < lines.length; i++) {
@@ -762,6 +783,9 @@ function processCSV(text) {
     const name = c[idx.exercise]?.trim();
     if (!date || !name) continue;
     totalRows++;
+    if (idx.category >= 0 && c[idx.category]?.trim()) {
+      categories[name] = c[idx.category].trim();
+    }
     const set = {
       weight:    idx.weight     >= 0 ? c[idx.weight]?.trim()     || '' : '',
       weightUnit:idx.weightUnit >= 0 ? c[idx.weightUnit]?.trim() || '' : '',
@@ -782,7 +806,7 @@ function processCSV(text) {
       .map(([date, sets]) => ({ date, sets }));
   }
 
-  return { importedAt: new Date().toISOString(), totalRows, exercises };
+  return { importedAt: new Date().toISOString(), totalRows, exercises, categories };
 }
 
 // ─── FitNotes – display helpers ───────────────────────────────────────────────
@@ -1000,6 +1024,176 @@ btnCloseFn.addEventListener('click', () => {
 
 btnEndSession.addEventListener('click', endSession);
 btnResetClock.addEventListener('click', resetSessionClock);
+
+// ─── Routine selector ────────────────────────────────────────────────────────
+const ROUTINE_MAP = {
+  push: ['Chest', 'Shoulders', 'Triceps'],
+  pull: ['Back', 'Biceps', 'Forearms'],
+  legs: ['Legs', 'Glutes', 'Quads', 'Hamstrings', 'Calves'],
+};
+
+function getExercisesForRoutine(type) {
+  const cats = ROUTINE_MAP[type];
+  if (!cats) return [];
+  const fn = loadFitNotes();
+  if (!fn || !fn.exercises) return [];
+  const catsLower = cats.map(c => c.toLowerCase());
+  const result = [];
+  for (const [name, sessions] of Object.entries(fn.exercises)) {
+    const cat = fn.categories && fn.categories[name];
+    if (!cat || !catsLower.includes(cat.toLowerCase())) continue;
+    const lastSession = sessions[0];
+    const lastSet = lastSession ? lastSession.sets[lastSession.sets.length - 1] : null;
+    result.push({
+      name,
+      category: cat,
+      lastWeight: lastSet ? parseFloat(lastSet.weight) || 0 : 0,
+      lastReps:   lastSet ? parseInt(lastSet.reps)    || 0 : 0,
+      lastUnit:   lastSet ? (lastSet.weightUnit || 'kg') : 'kg',
+    });
+  }
+  return result.sort((a, b) => {
+    const ia = catsLower.indexOf(a.category.toLowerCase());
+    const ib = catsLower.indexOf(b.category.toLowerCase());
+    if (ia !== ib) return ia - ib;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+function showRoutineView(view) {
+  routineViewType.style.display      = view === 'type'      ? 'flex' : 'none';
+  routineViewExercises.style.display = view === 'exercises' ? 'flex' : 'none';
+}
+
+function updateRoutineStartBtn() {
+  const n = routineSelectedExercises.size;
+  btnRoutineStart.textContent = n > 0
+    ? `Empezar con ${n} ejercicio${n !== 1 ? 's' : ''}`
+    : 'Empezar sin selección';
+}
+
+function renderRoutineExercises(type) {
+  const exercises = getExercisesForRoutine(type);
+  routineExerciseList.innerHTML = '';
+  routineSelectedExercises = new Set(exercises.map(e => e.name));
+  currentRoutineType = type;
+  routineTitle.textContent = type.toUpperCase();
+
+  if (exercises.length === 0) {
+    const msg = document.createElement('p');
+    msg.className = 'routine-empty';
+    msg.textContent = 'No hay ejercicios para esta categoría.\nImporta tu historial de FitNotes para verlos aquí.';
+    routineExerciseList.appendChild(msg);
+    updateRoutineStartBtn();
+    showRoutineView('exercises');
+    return;
+  }
+
+  let currentCat = null;
+  exercises.forEach(ex => {
+    if (ex.category !== currentCat) {
+      currentCat = ex.category;
+      const catLabel = document.createElement('div');
+      catLabel.className = 'routine-cat-label';
+      catLabel.textContent = ex.category.toUpperCase();
+      routineExerciseList.appendChild(catLabel);
+    }
+
+    const item = document.createElement('div');
+    item.className = 'routine-exercise-item selected';
+    item.dataset.name = ex.name;
+
+    const left = document.createElement('div');
+    left.className = 'routine-item-left';
+
+    const check = document.createElement('span');
+    check.className = 'routine-item-check';
+    check.textContent = '✓';
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'routine-item-name';
+    nameEl.textContent = ex.name;
+
+    left.append(check, nameEl);
+
+    const ref = document.createElement('div');
+    ref.className = 'routine-item-ref';
+    if (ex.lastWeight > 0) {
+      ref.textContent = ex.lastWeight + ' ' + ex.lastUnit + (ex.lastReps > 0 ? ' × ' + ex.lastReps : '');
+    }
+
+    item.append(left, ref);
+    item.addEventListener('click', () => {
+      if (routineSelectedExercises.has(ex.name)) {
+        routineSelectedExercises.delete(ex.name);
+        item.classList.remove('selected');
+      } else {
+        routineSelectedExercises.add(ex.name);
+        item.classList.add('selected');
+      }
+      updateRoutineStartBtn();
+    });
+    routineExerciseList.appendChild(item);
+  });
+
+  updateRoutineStartBtn();
+  showRoutineView('exercises');
+}
+
+function renderPlanChips() {
+  planChips.innerHTML = '';
+  if (currentPlan.length === 0) { sessionPlan.style.display = 'none'; return; }
+  sessionPlan.style.display = 'flex';
+  currentPlan.forEach(name => {
+    const chip = document.createElement('button');
+    chip.className = 'plan-chip';
+    chip.textContent = name;
+    chip.addEventListener('click', () => {
+      logExercise.value = name;
+      logExercise.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      logWeight.focus();
+    });
+    planChips.appendChild(chip);
+  });
+}
+
+function closeRoutinePanel() {
+  routinePanel.classList.remove('open');
+  document.body.style.overflow = '';
+  showRoutineView('type');
+}
+
+// Routine type buttons
+document.querySelectorAll('.routine-type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const type = btn.dataset.type;
+    if (type === 'libre') {
+      closeRoutinePanel();
+      if (!sessionClockStart) startSessionClock();
+    } else {
+      renderRoutineExercises(type);
+    }
+  });
+});
+
+document.querySelectorAll('.btn-close-routine').forEach(btn => {
+  btn.addEventListener('click', closeRoutinePanel);
+});
+
+btnRoutineBack.addEventListener('click', () => showRoutineView('type'));
+
+btnRoutineStart.addEventListener('click', () => {
+  currentPlan = Array.from(routineSelectedExercises);
+  closeRoutinePanel();
+  if (!sessionClockStart) startSessionClock();
+  renderPlanChips();
+});
+
+btnStartSession.addEventListener('click', () => {
+  showRoutineView('type');
+  routinePanel.classList.add('open');
+  document.body.style.overflow = 'hidden';
+});
 
 // ─── PR listeners ─────────────────────────────────────────────────────────────
 btnPRs.addEventListener('click', () => {

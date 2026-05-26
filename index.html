@@ -94,6 +94,50 @@
   <div class="pr-panel-content" id="prPanelContent"></div>
 </div>
 
+<!-- Routine selector panel -->
+<div class="routine-panel" id="routinePanel">
+
+  <!-- View: routine type selection -->
+  <div class="routine-view" id="routineViewType">
+    <div class="routine-panel-header">
+      <span class="routine-panel-title">NUEVA SESIÓN</span>
+      <button class="btn-close-routine" id="btnCloseRoutine">✕</button>
+    </div>
+    <div class="routine-types">
+      <button class="routine-type-btn" data-type="push">
+        <span class="routine-type-name">PUSH</span>
+        <span class="routine-type-sub">Pecho · Hombros · Tríceps</span>
+      </button>
+      <button class="routine-type-btn" data-type="pull">
+        <span class="routine-type-name">PULL</span>
+        <span class="routine-type-sub">Espalda · Bíceps · Antebrazos</span>
+      </button>
+      <button class="routine-type-btn" data-type="legs">
+        <span class="routine-type-name">LEGS</span>
+        <span class="routine-type-sub">Piernas · Glúteos · Pantorrillas</span>
+      </button>
+      <button class="routine-type-btn routine-type-libre" data-type="libre">
+        <span class="routine-type-name">LIBRE</span>
+        <span class="routine-type-sub">Sin rutina predefinida</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- View: exercise selection -->
+  <div class="routine-view" id="routineViewExercises" style="display:none">
+    <div class="routine-panel-header">
+      <button class="btn-routine-back" id="btnRoutineBack">← Volver</button>
+      <span class="routine-panel-title" id="routineTitle">PUSH</span>
+      <button class="btn-close-routine" id="btnCloseRoutineEx">✕</button>
+    </div>
+    <div class="routine-exercise-list" id="routineExerciseList"></div>
+    <div class="routine-footer">
+      <button class="btn-routine-start" id="btnRoutineStart">Empezar sesión</button>
+    </div>
+  </div>
+
+</div>
+
 <div class="container">
 
   <div class="header">
@@ -161,6 +205,8 @@
     </div>
   </div>
 
+  <button class="btn-start-session" id="btnStartSession">Iniciar sesión</button>
+
   <!-- ── Session log ──────────────────────────────────── -->
   <div class="session-clock" id="sessionClock">
     <div class="session-clock-left">
@@ -174,6 +220,10 @@
 
   <div class="log-section">
     <div class="section-label">Registrar ejercicio</div>
+
+    <div class="session-plan" id="sessionPlan" style="display:none">
+      <div class="plan-chips" id="planChips"></div>
+    </div>
 
     <div class="log-form" id="logForm">
       <input class="log-input-wide" id="logExercise" type="text" placeholder="Nombre del ejercicio" autocomplete="off"/>

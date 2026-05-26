@@ -1579,3 +1579,331 @@ body {
   font-size: 10px;
   color: var(--muted);
 }
+
+/* ─── Start session button ───────────────────────────────────────────────── */
+.btn-start-session {
+  width: 100%;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--accent);
+  background: transparent;
+  color: var(--accent);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.btn-start-session:hover {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+/* ─── Session plan chips ─────────────────────────────────────────────────── */
+.session-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plan-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.plan-chip {
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+
+.plan-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ─── Routine panel ──────────────────────────────────────────────────────── */
+.routine-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: var(--bg);
+  transform: translateY(100%);
+  transition: transform 0.38s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.routine-panel.open {
+  transform: translateY(0);
+}
+
+.routine-view {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.routine-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 24px 18px;
+  border-bottom: 1.5px solid var(--border);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.routine-panel-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 22px;
+  letter-spacing: 4px;
+  color: var(--accent);
+  flex: 1;
+  text-align: center;
+}
+
+.btn-close-routine {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-close-routine:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn-routine-back {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btn-routine-back:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.routine-types {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.routine-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 22px 24px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  width: 100%;
+  gap: 4px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.routine-type-btn:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.routine-type-btn:active {
+  transform: translateY(0);
+}
+
+.routine-type-libre {
+  border-style: dashed;
+}
+
+.routine-type-name {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 34px;
+  letter-spacing: 3px;
+  color: var(--accent);
+  line-height: 1;
+}
+
+.routine-type-libre .routine-type-name {
+  color: var(--muted);
+}
+
+.routine-type-sub {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.5px;
+}
+
+/* Exercise selection list */
+.routine-exercise-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.routine-cat-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 14px 2px 4px;
+}
+
+.routine-exercise-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 14px;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  gap: 10px;
+  opacity: 0.4;
+}
+
+.routine-exercise-item.selected {
+  opacity: 1;
+  border-color: var(--accent);
+}
+
+[data-theme="dark"] .routine-exercise-item.selected {
+  background: rgba(79, 158, 255, 0.05);
+}
+
+.routine-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.routine-item-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: transparent;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+
+.routine-exercise-item.selected .routine-item-check {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+[data-theme="dark"] .routine-exercise-item.selected .routine-item-check {
+  color: #080e1a;
+}
+
+.routine-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routine-item-ref {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.routine-exercise-item.selected .routine-item-ref {
+  color: var(--accent);
+}
+
+.routine-empty {
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: 48px 0;
+  line-height: 1.7;
+}
+
+.routine-footer {
+  padding: 16px 24px 40px;
+  flex-shrink: 0;
+  border-top: 1.5px solid var(--border);
+}
+
+.btn-routine-start {
+  width: 100%;
+  padding: 16px;
+  border-radius: 14px;
+  border: none;
+  background: var(--accent);
+  color: #ffffff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-routine-start:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+}
+
+.btn-routine-start:active {
+  transform: translateY(0);
+}
