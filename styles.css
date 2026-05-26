@@ -1874,8 +1874,24 @@ body {
   font-size: 13px;
   color: var(--muted);
   text-align: center;
-  padding: 48px 0;
+  padding: 48px 16px;
   line-height: 1.7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.routine-empty strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.3px;
+}
+
+.routine-empty p {
+  margin: 0;
+  max-width: 280px;
 }
 
 .routine-footer {

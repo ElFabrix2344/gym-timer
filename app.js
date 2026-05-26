@@ -1072,22 +1072,66 @@ function updateRoutineStartBtn() {
     : 'Empezar sin selección';
 }
 
-function renderRoutineExercises(type) {
-  const exercises = getExercisesForRoutine(type);
+function showRoutineEmpty(title, body) {
   routineExerciseList.innerHTML = '';
-  routineSelectedExercises = new Set(exercises.map(e => e.name));
+  const wrap = document.createElement('div');
+  wrap.className = 'routine-empty';
+  const t = document.createElement('strong');
+  t.textContent = title;
+  const p = document.createElement('p');
+  p.textContent = body;
+  wrap.append(t, p);
+  routineExerciseList.appendChild(wrap);
+}
+
+function renderRoutineExercises(type) {
+  routineExerciseList.innerHTML = '';
+  routineSelectedExercises = new Set();
   currentRoutineType = type;
   routineTitle.textContent = type.toUpperCase();
 
-  if (exercises.length === 0) {
-    const msg = document.createElement('p');
-    msg.className = 'routine-empty';
-    msg.textContent = 'No hay ejercicios para esta categoría.\nImporta tu historial de FitNotes para verlos aquí.';
-    routineExerciseList.appendChild(msg);
+  const fn = loadFitNotes();
+  const exCount  = fn && fn.exercises  ? Object.keys(fn.exercises).length  : 0;
+  const catCount = fn && fn.categories ? Object.keys(fn.categories).length : 0;
+  console.log('[VOLTA] routine:', type, '| exercises:', exCount, '| categories:', catCount);
+
+  // Case 1: no FitNotes data at all
+  if (!fn || exCount === 0) {
+    showRoutineEmpty(
+      'Sin datos de FitNotes',
+      'Importa tu historial desde "Historial FitNotes" para ver tus ejercicios aquí.'
+    );
     updateRoutineStartBtn();
     showRoutineView('exercises');
     return;
   }
+
+  // Case 2: data exists but without categories (imported before category support)
+  if (catCount === 0) {
+    showRoutineEmpty(
+      'Reimporta tu historial',
+      'Tu CSV fue importado con una versión anterior de VOLTA. Ve a "Historial FitNotes" → Importar CSV para activar el filtrado por rutina.'
+    );
+    updateRoutineStartBtn();
+    showRoutineView('exercises');
+    return;
+  }
+
+  const exercises = getExercisesForRoutine(type);
+  console.log('[VOLTA] filtered exercises for', type, ':', exercises.length);
+
+  // Case 3: categories exist but none match this routine
+  if (exercises.length === 0) {
+    showRoutineEmpty(
+      `Sin ejercicios para ${type.toUpperCase()}`,
+      'No hay ejercicios de esta categoría en tu historial de FitNotes.'
+    );
+    updateRoutineStartBtn();
+    showRoutineView('exercises');
+    return;
+  }
+
+  routineSelectedExercises = new Set(exercises.map(e => e.name));
 
   let currentCat = null;
   exercises.forEach(ex => {
