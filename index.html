@@ -34,6 +34,22 @@
   </div>
 </div>
 
+<!-- Plate calculator modal -->
+<div class="mini-modal" id="plateModal">
+  <div class="mini-modal-card">
+    <div class="mini-modal-title">DISCOS POR LADO</div>
+    <div class="plate-weight" id="plateWeight">0 kg</div>
+    <div class="plate-bar-row">
+      <span class="plate-bar-label">Barra</span>
+      <button class="plate-bar-btn active" data-bar="20">20</button>
+      <button class="plate-bar-btn" data-bar="15">15</button>
+      <button class="plate-bar-btn" data-bar="10">10</button>
+    </div>
+    <div class="plate-result" id="plateResult"></div>
+    <button class="mini-modal-close" id="btnPlateClose">Cerrar</button>
+  </div>
+</div>
+
 <!-- History panel -->
 <div class="history-panel" id="historyPanel">
   <div class="history-header">
@@ -41,6 +57,12 @@
     <button class="btn-close-history" id="btnCloseHistory">✕</button>
   </div>
   <div class="history-content" id="historyContent"></div>
+  <div class="history-footer">
+    <button class="btn-data" id="btnExportCsv">↓ CSV</button>
+    <button class="btn-data" id="btnBackupJson">↓ Respaldo</button>
+    <label class="btn-data" for="restoreFileInput">↑ Restaurar</label>
+  </div>
+  <input type="file" id="restoreFileInput" accept=".json,application/json" style="display:none">
 </div>
 
 <!-- FitNotes panel -->
@@ -198,8 +220,12 @@
       <button class="active-ex-name" id="activeExName" title="Ir al registro"></button>
       <button class="active-ex-done" id="btnActiveExDone">✓ Terminar</button>
     </div>
+    <div class="active-ex-last" id="activeExLast" style="display:none"></div>
     <div class="active-ex-body">
-      <span class="active-ex-setnum" id="activeExSetNum">SERIE 1</span>
+      <div class="active-ex-subrow">
+        <span class="active-ex-setnum" id="activeExSetNum">SERIE 1</span>
+        <button class="active-ex-plates" id="btnPlates" type="button">⚖ Discos</button>
+      </div>
       <div class="active-ex-steppers">
         <div class="stepper">
           <button class="stepper-btn" id="stWeightDown" type="button">−</button>

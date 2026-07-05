@@ -5,6 +5,8 @@ let totalDuration = 90;
 let running       = false;
 let interval      = null;
 let phase         = 'idle';
+let restEndTime   = null;   // epoch ms; source of truth while resting (survives throttling)
+let wakeLock      = null;
 let sets          = 0;
 let totalRests    = 0;
 let sessionStart     = null;
@@ -72,6 +74,7 @@ const activeExerciseBar    = document.getElementById('activeExerciseBar');
 const activeExName         = document.getElementById('activeExName');
 const btnActiveExDone      = document.getElementById('btnActiveExDone');
 const activeExSetNum       = document.getElementById('activeExSetNum');
+const activeExLast         = document.getElementById('activeExLast');
 const stWeightVal          = document.getElementById('stWeightVal');
 const stWeightDown         = document.getElementById('stWeightDown');
 const stWeightUp           = document.getElementById('stWeightUp');
@@ -161,22 +164,25 @@ function updateDots() {
   }
 }
 
-function startSessionClock() {
+function startSessionClock(startAt = Date.now()) {
   if (sessionClockInterval) return;
-  sessionClockStart = Date.now();
+  sessionClockStart = startAt;
   btnStartSession.style.display = 'none';
   sessionClock.classList.add('active');
-  sessionClockDisplay.textContent = fmtDuration(0);
+  sessionClockDisplay.textContent = fmtDuration(Math.floor((Date.now() - startAt) / 1000));
   sessionClockInterval = setInterval(() => {
     const elapsed = Math.floor((Date.now() - sessionClockStart) / 1000);
     sessionClockDisplay.textContent = fmtDuration(elapsed);
   }, 1000);
+  requestWakeLock();
+  saveLiveState();
 }
 
 function resetSessionClock() {
   if (!sessionClockStart) return;
   sessionClockStart = Date.now();
   sessionClockDisplay.textContent = fmtDuration(0);
+  saveLiveState();
 }
 
 function endSession() {
@@ -226,6 +232,8 @@ function endSession() {
   sessionPlan.style.display = 'none';
   planChips.innerHTML = '';
 
+  releaseWakeLock();
+  saveLiveState();
   showToast('Sesión guardada ✓');
 }
 
@@ -234,10 +242,30 @@ function updateSessionTime() {
   statTime.textContent = Math.floor((Date.now() - sessionStart) / 60000) + 'm';
 }
 
+// ─── Wake lock ────────────────────────────────────────────────────────────────
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator)) return;
+  try {
+    if (wakeLock) return;
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => { wakeLock = null; });
+  } catch (e) {}
+}
+
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release().catch(() => {});
+    wakeLock = null;
+  }
+}
+
 // ─── Timer logic ──────────────────────────────────────────────────────────────
+// The countdown is timestamp-based: setInterval only refreshes the display, so
+// background throttling can't freeze or drift the timer — it self-corrects.
 function startRest() {
   phase = 'rest';
   remaining = totalDuration = restDuration;
+  restEndTime = Date.now() + restDuration * 1000;
   running = true;
   timeLabel.textContent = 'DESCANSO';
   btnPlay.classList.add('rest-mode');
@@ -245,34 +273,40 @@ function startRest() {
   btnPlay.textContent = '⏸';
   setRing(1);
   clearInterval(interval);
-  interval = setInterval(tick, 1000);
+  interval = setInterval(tick, 500);
+  requestWakeLock();
+  saveLiveState();
 }
 
 function tick() {
-  remaining--;
+  remaining = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
   updateDisplay();
   setRing(remaining / totalDuration);
-  if (remaining <= 0) {
-    clearInterval(interval);
-    running = false;
-    phase = 'idle';
-    statRests.textContent = ++totalRests;
-    beep('end');
-    console.log('[VOLTA] Timer en cero — ejecutando vibración');
-    if ('vibrate' in navigator) navigator.vibrate([200, 100, 200, 100, 200]);
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({ type: 'SHOW_NOTIFICATION' });
-    }
-    flashScreen();
-    showToast('¡A TRABAJAR!');
-    timeLabel.textContent = 'DESCANSO';
-    btnPlay.classList.remove('rest-mode');
-    ringProgress.classList.remove('rest-mode');
-    btnPlay.textContent = '▶';
-    remaining = restDuration;
-    updateDisplay();
-    setRing(1);
+  if (remaining <= 0) finishRest();
+}
+
+function finishRest() {
+  clearInterval(interval);
+  running = false;
+  phase = 'idle';
+  restEndTime = null;
+  statRests.textContent = ++totalRests;
+  beep('end');
+  console.log('[VOLTA] Timer en cero — ejecutando vibración');
+  if ('vibrate' in navigator) navigator.vibrate([200, 100, 200, 100, 200]);
+  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage({ type: 'SHOW_NOTIFICATION' });
   }
+  flashScreen();
+  showToast('¡A TRABAJAR!');
+  timeLabel.textContent = 'DESCANSO';
+  btnPlay.classList.remove('rest-mode');
+  ringProgress.classList.remove('rest-mode');
+  btnPlay.textContent = '▶';
+  remaining = restDuration;
+  updateDisplay();
+  setRing(1);
+  saveLiveState();
 }
 
 function pauseResume() {
@@ -282,20 +316,25 @@ function pauseResume() {
     return;
   }
   if (running) {
+    remaining = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
     clearInterval(interval);
     running = false;
+    restEndTime = null;
     btnPlay.textContent = '▶';
   } else {
+    restEndTime = Date.now() + remaining * 1000;
     running = true;
     btnPlay.textContent = '⏸';
-    interval = setInterval(tick, 1000);
+    interval = setInterval(tick, 500);
   }
+  saveLiveState();
 }
 
 function reset() {
   clearInterval(interval);
   running = false;
   phase = 'idle';
+  restEndTime = null;
   remaining = totalDuration = restDuration;
   updateDisplay();
   setRing(1);
@@ -304,7 +343,15 @@ function reset() {
   ringProgress.classList.remove('rest-mode');
   btnPlay.textContent = '▶';
   timeDisplay.classList.remove('warning');
+  saveLiveState();
 }
+
+// Coming back to the foreground: correct the display instantly and re-grab the lock
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  if (running && restEndTime) tick();
+  if (sessionClockStart || running) requestWakeLock();
+});
 
 function registerSet() {
   if (!sessionStart) sessionStart = Date.now();
@@ -344,6 +391,8 @@ pills.forEach(p => {
       updateDisplay();
       setRing(1);
     }
+    rememberRestPref();
+    saveLiveState();
   });
 });
 
@@ -357,6 +406,8 @@ customInput.addEventListener('input', () => {
       updateDisplay();
       setRing(1);
     }
+    rememberRestPref();
+    saveLiveState();
   }
 });
 
@@ -367,6 +418,7 @@ setsDown.addEventListener('click', () => {
     setsDisplay.textContent = sets;
     statSets.textContent = sets;
     updateDots();
+    saveLiveState();
   }
 });
 
@@ -375,6 +427,7 @@ setsUp.addEventListener('click', () => {
   setsDisplay.textContent = sets;
   statSets.textContent = sets;
   updateDots();
+  saveLiveState();
 });
 
 // ─── Button listeners ─────────────────────────────────────────────────────────
@@ -418,6 +471,126 @@ function loadSessionMeta() {
 
 function saveSessionMeta(meta) {
   localStorage.setItem('gym-timer-session-meta', JSON.stringify(meta));
+}
+
+// ─── Live session persistence ─────────────────────────────────────────────────
+// Snapshot of the in-progress session so a killed/reloaded PWA can pick up
+// exactly where it left off. Cleared when the session ends.
+function saveLiveState() {
+  if (!sessionClockStart) { localStorage.removeItem('gym-timer-live'); return; }
+  const rows = Array.from(logSetsList.querySelectorAll('.log-set-row')).map(r => ({
+    weight: r.querySelector('.log-set-weight').value,
+    reps:   r.querySelector('.log-set-reps').value,
+  }));
+  const state = {
+    savedAt: Date.now(),
+    sessionClockStart, sessionStart, sets, totalRests,
+    currentPlan,
+    completed: Array.from(completedExercises),
+    activeExercise,
+    formName: logExercise.value,
+    formRows: rows,
+    restDuration,
+    timer: (running && restEndTime) ? { endTime: restEndTime, total: totalDuration } : null,
+  };
+  try { localStorage.setItem('gym-timer-live', JSON.stringify(state)); } catch (e) {}
+}
+
+function updateRestUI(seconds) {
+  let matched = false;
+  pills.forEach(p => {
+    const is = parseInt(p.dataset.val) === seconds;
+    p.classList.toggle('active', is);
+    if (is) matched = true;
+  });
+  customInput.value = matched ? '' : seconds;
+}
+
+// ─── Rest preference per exercise ─────────────────────────────────────────────
+function loadRestPrefs() {
+  try { return JSON.parse(localStorage.getItem('gym-timer-rest-prefs') || '{}'); }
+  catch (e) { return {}; }
+}
+
+function rememberRestPref() {
+  if (!activeExercise) return;
+  const p = loadRestPrefs();
+  p[activeExercise.toLowerCase()] = restDuration;
+  localStorage.setItem('gym-timer-rest-prefs', JSON.stringify(p));
+}
+
+function applyRestPref(name) {
+  const pref = loadRestPrefs()[name.toLowerCase()];
+  if (!pref || pref === restDuration) return;
+  restDuration = pref;
+  updateRestUI(pref);
+  if (!running) {
+    remaining = totalDuration = restDuration;
+    updateDisplay();
+    setRing(1);
+  }
+}
+
+function restoreLiveState() {
+  let s;
+  try { s = JSON.parse(localStorage.getItem('gym-timer-live') || 'null'); }
+  catch (e) { return; }
+  if (!s || !s.sessionClockStart) return;
+  // Stale snapshot (half a day old) → the session is over, drop it
+  if (Date.now() - (s.savedAt || 0) > 12 * 3600 * 1000) {
+    localStorage.removeItem('gym-timer-live');
+    return;
+  }
+
+  sets         = s.sets || 0;
+  totalRests   = s.totalRests || 0;
+  sessionStart = s.sessionStart || null;
+  setsDisplay.textContent = sets;
+  statSets.textContent    = sets;
+  statRests.textContent   = totalRests;
+  updateDots();
+  updateSessionTime();
+
+  startSessionClock(s.sessionClockStart);
+
+  currentPlan        = s.currentPlan || [];
+  completedExercises = new Set(s.completed || []);
+  renderPlanChips();
+
+  if (s.restDuration) {
+    restDuration = s.restDuration;
+    updateRestUI(restDuration);
+  }
+
+  logExercise.value = s.formName || '';
+  logSetsList.innerHTML = '';
+  const rows = (s.formRows && s.formRows.length) ? s.formRows : [{ weight: '', reps: '' }];
+  rows.forEach(r => addLogSetRow(r.weight, r.reps));
+
+  if (s.activeExercise) setActiveExercise(s.activeExercise);
+
+  if (s.timer && s.timer.endTime > Date.now()) {
+    // Rest was running: resume the countdown from the saved end time
+    phase = 'rest';
+    running = true;
+    restEndTime = s.timer.endTime;
+    totalDuration = s.timer.total || restDuration;
+    timeLabel.textContent = 'DESCANSO';
+    btnPlay.classList.add('rest-mode');
+    ringProgress.classList.add('rest-mode');
+    btnPlay.textContent = '⏸';
+    clearInterval(interval);
+    interval = setInterval(tick, 500);
+    tick();
+  } else {
+    remaining = totalDuration = restDuration;
+    updateDisplay();
+    setRing(1);
+    if (s.timer) showToast('El descanso terminó mientras la app estaba cerrada');
+  }
+
+  requestWakeLock();
+  saveLiveState();
 }
 
 // ─── PR helpers ───────────────────────────────────────────────────────────────
@@ -533,8 +706,144 @@ function renderPRPanel() {
 
     right.append(weightEl, dateEl);
     row.append(nameEl, right);
+    row.addEventListener('click', () => renderPRChart(pr.name));
     prPanelContent.appendChild(row);
   });
+}
+
+// ─── Progress chart ───────────────────────────────────────────────────────────
+// Per-session top weight and volume, merged from FitNotes + local log
+function getExerciseTimeline(name) {
+  const lower = name.toLowerCase();
+  const byDate = new Map();
+  const add = (date, w, r) => {
+    const weight = parseFloat(w) || 0;
+    const reps = parseInt(r) || 0;
+    if (!(weight > 0)) return;
+    const cur = byDate.get(date) || { top: 0, volume: 0 };
+    cur.top = Math.max(cur.top, weight);
+    cur.volume += weight * (reps || 1);
+    byDate.set(date, cur);
+  };
+
+  const fn = loadFitNotes();
+  if (fn && fn.exercises) {
+    for (const [n, sessions] of Object.entries(fn.exercises)) {
+      if (n.toLowerCase() !== lower) continue;
+      for (const s of sessions) for (const set of s.sets) add(s.date, set.weight, set.reps);
+    }
+  }
+  const log = loadLog();
+  for (const [date, entries] of Object.entries(log)) {
+    for (const e of entries) {
+      if (!e.exercise || e.exercise.toLowerCase() !== lower) continue;
+      if (Array.isArray(e.sets)) e.sets.forEach(s => add(date, s.weight, s.reps));
+      else add(date, e.weight, e.reps);
+    }
+  }
+  return Array.from(byDate.entries())
+    .map(([date, v]) => ({ date, ...v }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function formatChartDate(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: '2-digit' });
+}
+
+function chartStat(value, label) {
+  const box = document.createElement('div');
+  box.className = 'chart-stat';
+  const v = document.createElement('div');
+  v.className = 'chart-stat-value';
+  v.textContent = value;
+  const l = document.createElement('div');
+  l.className = 'chart-stat-label';
+  l.textContent = label;
+  box.append(v, l);
+  return box;
+}
+
+function renderPRChart(name) {
+  prPanelContent.innerHTML = '';
+
+  const back = document.createElement('button');
+  back.className = 'btn-chart-back';
+  back.textContent = '← Récords';
+  back.addEventListener('click', renderPRPanel);
+  prPanelContent.appendChild(back);
+
+  const title = document.createElement('div');
+  title.className = 'chart-title';
+  title.textContent = name;
+  prPanelContent.appendChild(title);
+
+  const data = getExerciseTimeline(name);
+  if (data.length === 0) {
+    const msg = document.createElement('p');
+    msg.className = 'pr-empty';
+    msg.textContent = 'Sin registros con peso para este ejercicio.';
+    prPanelContent.appendChild(msg);
+    return;
+  }
+
+  const first = data[0];
+  const last  = data[data.length - 1];
+  const top   = Math.max(...data.map(d => d.top));
+  const delta = last.top - first.top;
+
+  const stats = document.createElement('div');
+  stats.className = 'chart-stats';
+  stats.append(
+    chartStat(top + ' kg', 'PR'),
+    chartStat(last.top + ' kg', 'Última'),
+    chartStat((delta >= 0 ? '+' : '') + Math.round(delta * 10) / 10 + ' kg', 'Progreso'),
+    chartStat(String(data.length), 'Sesiones'),
+  );
+  prPanelContent.appendChild(stats);
+
+  if (data.length < 2) {
+    const msg = document.createElement('p');
+    msg.className = 'chart-note';
+    msg.textContent = 'Con al menos 2 sesiones verás la curva de progreso.';
+    prPanelContent.appendChild(msg);
+    return;
+  }
+
+  const W = 340, H = 190, padL = 40, padR = 12, padT = 14, padB = 26;
+  const vals = data.map(d => d.top);
+  let lo = Math.min(...vals);
+  let hi = Math.max(...vals);
+  if (hi === lo) { hi += 5; lo = Math.max(0, lo - 5); }
+  const xs = i => padL + (W - padL - padR) * (i / (data.length - 1));
+  const ys = v => padT + (H - padT - padB) * (1 - (v - lo) / (hi - lo));
+  const midVal = Math.round((lo + hi) / 2 * 10) / 10;
+
+  const points = data.map((d, i) => `${xs(i).toFixed(1)},${ys(d.top).toFixed(1)}`).join(' ');
+  const dots = data.map((d, i) =>
+    `<circle cx="${xs(i).toFixed(1)}" cy="${ys(d.top).toFixed(1)}" r="3.2" style="fill:var(--accent)"/>`
+  ).join('');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'chart-wrap';
+  wrap.innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">` +
+    `<line x1="${padL}" y1="${ys(midVal)}" x2="${W - padR}" y2="${ys(midVal)}" style="stroke:var(--border);stroke-width:1;stroke-dasharray:3 4"/>` +
+    `<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" style="stroke:var(--border);stroke-width:1"/>` +
+    `<text x="${padL - 6}" y="${ys(hi) + 3}" text-anchor="end" style="fill:var(--muted);font-size:9px;font-family:'DM Sans',sans-serif">${hi}</text>` +
+    `<text x="${padL - 6}" y="${ys(midVal) + 3}" text-anchor="end" style="fill:var(--muted);font-size:9px;font-family:'DM Sans',sans-serif">${midVal}</text>` +
+    `<text x="${padL - 6}" y="${ys(lo) + 3}" text-anchor="end" style="fill:var(--muted);font-size:9px;font-family:'DM Sans',sans-serif">${lo}</text>` +
+    `<polyline points="${points}" style="fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round;stroke-linecap:round"/>` +
+    dots +
+    `<text x="${padL}" y="${H - 8}" style="fill:var(--muted);font-size:9px;font-family:'DM Sans',sans-serif">${formatChartDate(first.date)}</text>` +
+    `<text x="${W - padR}" y="${H - 8}" text-anchor="end" style="fill:var(--muted);font-size:9px;font-family:'DM Sans',sans-serif">${formatChartDate(last.date)}</text>` +
+    `</svg>`;
+  prPanelContent.appendChild(wrap);
+
+  const note = document.createElement('p');
+  note.className = 'chart-note';
+  note.textContent = 'Peso máximo por sesión (kg)';
+  prPanelContent.appendChild(note);
 }
 
 // ─── Log set row helpers ──────────────────────────────────────────────────────
@@ -660,6 +969,7 @@ function saveEntry(refocus = true) {
 
   renderCurrentSession();
   populateExerciseDatalist();
+  saveLiveState();
   showToast('Ejercicio guardado');
 }
 
@@ -774,6 +1084,94 @@ function formatDateKey(key) {
   });
 }
 
+// ─── Weekly summary ───────────────────────────────────────────────────────────
+// Monday of the week containing the given date, as YYYY-MM-DD
+function getWeekKey(d) {
+  const dt = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+function weekKeyOfDateStr(key) {
+  const [y, m, d] = key.split('-').map(Number);
+  return getWeekKey(new Date(y, m - 1, d));
+}
+
+function buildWeeklySummaryEl() {
+  const log = loadLog();
+  if (Object.keys(log).length === 0) return null;
+
+  const thisWeek = getWeekKey(new Date());
+  const fn = loadFitNotes();
+  const catFor = name => {
+    if (!fn || !fn.categories || !name) return null;
+    if (fn.categories[name]) return fn.categories[name];
+    const k = Object.keys(fn.categories).find(k => k.toLowerCase() === name.toLowerCase());
+    return k ? fn.categories[k] : null;
+  };
+
+  let sessions = 0, setCount = 0, volume = 0;
+  const groups = {};
+  for (const [date, entries] of Object.entries(log)) {
+    if (weekKeyOfDateStr(date) !== thisWeek) continue;
+    sessions++;
+    for (const e of entries) {
+      const sets = Array.isArray(e.sets) ? e.sets : [{ weight: e.weight, reps: e.reps }];
+      const valid = sets.filter(s =>
+        (s.weight || '').toString().trim() || (s.reps || '').toString().trim());
+      setCount += valid.length;
+      valid.forEach(s => {
+        volume += (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0);
+      });
+      const cat = catFor(e.exercise) || 'Otros';
+      groups[cat] = (groups[cat] || 0) + valid.length;
+    }
+  }
+
+  // Streak: consecutive weeks with at least one logged day, counting back.
+  // An empty current week doesn't break the streak (it just isn't counted yet).
+  const weekSet = new Set(Object.keys(log).map(weekKeyOfDateStr));
+  let streak = 0;
+  const cursor = new Date();
+  if (!weekSet.has(thisWeek)) cursor.setDate(cursor.getDate() - 7);
+  while (weekSet.has(getWeekKey(cursor))) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 7);
+  }
+
+  const el = document.createElement('div');
+  el.className = 'week-summary';
+
+  const label = document.createElement('div');
+  label.className = 'week-summary-label';
+  label.textContent = 'ESTA SEMANA';
+
+  const main = document.createElement('div');
+  main.className = 'week-summary-main';
+  main.textContent = sessions === 0
+    ? 'Sin sesiones todavía'
+    : `${sessions} ${sessions === 1 ? 'sesión' : 'sesiones'} · ${setCount} series · ${Math.round(volume).toLocaleString('es-ES')} kg`;
+
+  el.append(label, main);
+
+  const groupNames = Object.keys(groups).sort((a, b) => groups[b] - groups[a]);
+  if (groupNames.length > 0 && !(groupNames.length === 1 && groupNames[0] === 'Otros')) {
+    const gr = document.createElement('div');
+    gr.className = 'week-summary-groups';
+    gr.textContent = groupNames.map(g => `${g} ${groups[g]}`).join(' · ');
+    el.appendChild(gr);
+  }
+
+  if (streak > 0) {
+    const st = document.createElement('div');
+    st.className = 'week-summary-streak';
+    st.textContent = `${streak >= 2 ? '🔥 ' : ''}Racha: ${streak} semana${streak !== 1 ? 's' : ''} entrenando`;
+    el.appendChild(st);
+  }
+
+  return el;
+}
+
 function renderHistory() {
   const log = loadLog();
   const keys = Object.keys(log).sort((a, b) => b.localeCompare(a));
@@ -786,6 +1184,9 @@ function renderHistory() {
     historyContent.appendChild(empty);
     return;
   }
+
+  const weekSummary = buildWeeklySummaryEl();
+  if (weekSummary) historyContent.appendChild(weekSummary);
 
   keys.forEach(key => {
     const entries = log[key];
@@ -831,6 +1232,113 @@ btnHistory.addEventListener('click', () => {
 btnCloseHistory.addEventListener('click', () => {
   historyPanel.classList.remove('open');
   document.body.style.overflow = '';
+});
+
+// ─── Data export / backup ─────────────────────────────────────────────────────
+const btnExportCsv     = document.getElementById('btnExportCsv');
+const btnBackupJson    = document.getElementById('btnBackupJson');
+const restoreFileInput = document.getElementById('restoreFileInput');
+
+const BACKUP_KEYS = [
+  'gym-timer-log', 'gym-timer-session-meta', 'gym-timer-fitnotes',
+  'gym-timer-custom-routines', 'gym-timer-rest-prefs', 'gym-timer-theme',
+];
+
+function csvEscape(v) {
+  v = String(v == null ? '' : v);
+  return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
+
+// FitNotes-compatible CSV with everything: imported history + local log.
+// Reimportable both in FitNotes and in VOLTA itself.
+function buildExportCSV() {
+  const header = 'Date,Exercise,Category,Weight,Weight Unit,Reps,Distance,Distance Unit,Time';
+  const rows = [];
+  const fn = loadFitNotes();
+  const catFor = name => {
+    if (!fn || !fn.categories || !name) return '';
+    if (fn.categories[name]) return fn.categories[name];
+    const k = Object.keys(fn.categories).find(k => k.toLowerCase() === name.toLowerCase());
+    return k ? fn.categories[k] : '';
+  };
+
+  if (fn && fn.exercises) {
+    for (const [name, sessions] of Object.entries(fn.exercises)) {
+      for (const sess of sessions) {
+        for (const set of sess.sets) {
+          rows.push([sess.date, name, catFor(name), set.weight, set.weightUnit,
+                     set.reps, set.distance, set.distUnit, set.time].map(csvEscape).join(','));
+        }
+      }
+    }
+  }
+
+  const log = loadLog();
+  for (const [date, entries] of Object.entries(log)) {
+    for (const e of entries) {
+      const sets = Array.isArray(e.sets) ? e.sets : [{ weight: e.weight, reps: e.reps }];
+      for (const s of sets) {
+        if (!(s.weight || '').toString().trim() && !(s.reps || '').toString().trim()) continue;
+        rows.push([date, e.exercise, catFor(e.exercise), s.weight || '',
+                   s.weight ? 'kgs' : '', s.reps || '', '', '', ''].map(csvEscape).join(','));
+      }
+    }
+  }
+
+  rows.sort();
+  return [header, ...rows].join('\n');
+}
+
+function buildBackup() {
+  const data = { app: 'VOLTA', version: 1, exportedAt: new Date().toISOString(), store: {} };
+  BACKUP_KEYS.forEach(k => {
+    const v = localStorage.getItem(k);
+    if (v !== null) data.store[k] = v;
+  });
+  return JSON.stringify(data);
+}
+
+function downloadFile(name, content, type) {
+  const blob = new Blob([content], { type });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+btnExportCsv.addEventListener('click', () => {
+  downloadFile(`volta-export-${getTodayKey()}.csv`, buildExportCSV(), 'text/csv');
+  showToast('CSV exportado');
+});
+
+btnBackupJson.addEventListener('click', () => {
+  downloadFile(`volta-respaldo-${getTodayKey()}.json`, buildBackup(), 'application/json');
+  showToast('Respaldo descargado');
+});
+
+restoreFileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (!data || data.app !== 'VOLTA' || !data.store) {
+        alert('Archivo de respaldo inválido.');
+        return;
+      }
+      if (!confirm('¿Restaurar respaldo? Se reemplazarán los datos actuales de la app.')) return;
+      Object.entries(data.store).forEach(([k, v]) => {
+        if (BACKUP_KEYS.includes(k)) localStorage.setItem(k, v);
+      });
+      location.reload();
+    } catch (err) {
+      alert('No se pudo leer el respaldo.');
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
 });
 
 btnLogSave.addEventListener('click', saveEntry);
@@ -1041,7 +1549,7 @@ function renderFnSearch(query) {
 
     const meta = document.createElement('span');
     meta.className = 'fn-exercise-btn-meta';
-    meta.textContent = sessions.length + ' sesión' + (sessions.length !== 1 ? 'es' : '');
+    meta.textContent = sessions.length + (sessions.length === 1 ? ' sesión' : ' sesiones');
 
     btn.append(nameEl, meta);
     btn.addEventListener('click', () => renderFnExercise(name));
@@ -1441,6 +1949,7 @@ function markPlanChipDone(name) {
     if (wrap.dataset.name === lower) wrap.classList.add('done');
   });
   if (activeExercise && activeExercise.toLowerCase() === lower) clearActiveExercise();
+  saveLiveState();
 }
 
 // ─── Active exercise ──────────────────────────────────────────────────────────
@@ -1482,6 +1991,54 @@ function getLastKnownWeight(name) {
   return '';
 }
 
+// Full set list of the most recent session of an exercise (local log, then FitNotes)
+function getLastSessionSets(name) {
+  const lower = name.toLowerCase();
+  const log = loadLog();
+  const keys = Object.keys(log).sort((a, b) => b.localeCompare(a));
+  for (const key of keys) {
+    for (const e of log[key]) {
+      if (!e.exercise || e.exercise.toLowerCase() !== lower) continue;
+      const sets = Array.isArray(e.sets) ? e.sets : [{ weight: e.weight, reps: e.reps }];
+      const valid = sets.filter(s =>
+        (s.weight || '').toString().trim() || (s.reps || '').toString().trim());
+      if (valid.length) return { date: key, sets: valid };
+    }
+  }
+  const fn = loadFitNotes();
+  if (fn && fn.exercises) {
+    for (const [exName, sessions] of Object.entries(fn.exercises)) {
+      if (exName.toLowerCase() !== lower) continue;
+      if (sessions[0] && sessions[0].sets.length) return { date: sessions[0].date, sets: sessions[0].sets };
+    }
+  }
+  return null;
+}
+
+function formatSetShort(s) {
+  const w = parseFloat(s.weight);
+  const r = (s.reps || '').toString().trim();
+  if (w > 0 && r) return w + '×' + r;
+  if (w > 0) return w + 'kg';
+  if (r) return '×' + r;
+  return '';
+}
+
+function updateActiveExLast(name) {
+  const last = getLastSessionSets(name);
+  if (!last) { activeExLast.style.display = 'none'; return; }
+  const [y, m, d] = last.date.split('-').map(Number);
+  const dateStr = new Date(y, m - 1, d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  const setsStr = last.sets.map(formatSetShort).filter(Boolean).join(' · ');
+  activeExLast.innerHTML = '';
+  const label = document.createElement('span');
+  label.textContent = `Última vez (${dateStr}): `;
+  const vals = document.createElement('strong');
+  vals.textContent = setsStr;
+  activeExLast.append(label, vals);
+  activeExLast.style.display = '';
+}
+
 function lastLogRow() {
   const rows = logSetsList.querySelectorAll('.log-set-row');
   return rows.length ? rows[rows.length - 1] : null;
@@ -1508,6 +2065,7 @@ function syncRowFromCard() {
   if (!row) return;
   row.querySelector('.log-set-weight').value = stWeightVal.value;
   row.querySelector('.log-set-reps').value   = stRepsVal.value;
+  saveLiveState();
 }
 
 function stepCardValue(input, delta, min) {
@@ -1522,6 +2080,8 @@ function setActiveExercise(name) {
   activeExercise = name;
   activeExName.textContent = name;
   activeExerciseBar.classList.add('show');
+  updateActiveExLast(name);
+  applyRestPref(name);
   // Untouched form → prefill weight from the last known session
   const rows = logSetsList.querySelectorAll('.log-set-row');
   if (rows.length === 1 && !logFormHasData()) {
@@ -1530,12 +2090,14 @@ function setActiveExercise(name) {
   }
   syncCardFromRow();
   updateActiveChipStyles();
+  saveLiveState();
 }
 
 function clearActiveExercise() {
   activeExercise = null;
   activeExerciseBar.classList.remove('show');
   updateActiveChipStyles();
+  saveLiveState();
 }
 
 // ✓ Terminar: save whatever is in the form for this exercise, then mark it done
@@ -1651,6 +2213,7 @@ btnRoutineStart.addEventListener('click', () => {
   closeRoutinePanel();
   if (!sessionClockStart) startSessionClock();
   renderPlanChips();
+  saveLiveState();
 });
 
 // Active exercise card: name → jump to log form; ✓ → save + finish exercise
@@ -1673,7 +2236,78 @@ stWeightVal.addEventListener('input', syncRowFromCard);
 stRepsVal.addEventListener('input', syncRowFromCard);
 
 // Typing directly in the form rows keeps the card in sync
-logSetsList.addEventListener('input', () => syncCardFromRow());
+logSetsList.addEventListener('input', () => { syncCardFromRow(); saveLiveState(); });
+logExercise.addEventListener('input', () => saveLiveState());
+
+// ─── Plate calculator ─────────────────────────────────────────────────────────
+const plateModal    = document.getElementById('plateModal');
+const plateWeight   = document.getElementById('plateWeight');
+const plateResult   = document.getElementById('plateResult');
+const btnPlates     = document.getElementById('btnPlates');
+const btnPlateClose = document.getElementById('btnPlateClose');
+
+const PLATE_SIZES = [25, 20, 15, 10, 5, 2.5, 1.25];
+
+function calcPlates(total, bar) {
+  let side = (total - bar) / 2;
+  const plates = [];
+  for (const p of PLATE_SIZES) {
+    while (side >= p - 1e-9) { plates.push(p); side -= p; }
+  }
+  return { plates, rest: Math.round(side * 100) / 100 };
+}
+
+function renderPlates() {
+  const w = parseFloat(stWeightVal.value) || 0;
+  const bar = parseFloat(document.querySelector('.plate-bar-btn.active').dataset.bar);
+  plateWeight.textContent = w + ' kg';
+  plateResult.innerHTML = '';
+
+  if (w <= 0) { plateResult.textContent = 'Pon un peso en la tarjeta primero.'; return; }
+  if (w < bar) { plateResult.textContent = 'El peso es menor que la barra.'; return; }
+
+  const res = calcPlates(w, bar);
+  if (res.plates.length === 0 && res.rest === 0) {
+    plateResult.textContent = 'Solo la barra.';
+    return;
+  }
+
+  const chips = document.createElement('div');
+  chips.className = 'plate-chips';
+  res.plates.forEach(p => {
+    const c = document.createElement('span');
+    c.className = 'plate-chip';
+    c.textContent = p;
+    chips.appendChild(c);
+  });
+  plateResult.appendChild(chips);
+
+  if (res.rest > 0) {
+    const note = document.createElement('p');
+    note.className = 'plate-note';
+    note.textContent = `Quedan ${res.rest} kg sin cubrir por lado`;
+    plateResult.appendChild(note);
+  }
+}
+
+btnPlates.addEventListener('click', () => {
+  renderPlates();
+  plateModal.classList.add('show');
+});
+
+btnPlateClose.addEventListener('click', () => plateModal.classList.remove('show'));
+
+plateModal.addEventListener('click', e => {
+  if (e.target === plateModal) plateModal.classList.remove('show');
+});
+
+document.querySelectorAll('.plate-bar-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.plate-bar-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderPlates();
+  });
+});
 
 btnStartSession.addEventListener('click', () => {
   showRoutineView('type');
@@ -1705,6 +2339,8 @@ setRing(1);
 renderCurrentSession();
 addLogSetRow();
 populateExerciseDatalist();
+restoreLiveState();
+window.addEventListener('beforeunload', saveLiveState);
 
 if ('Notification' in window && Notification.permission === 'default') {
   Notification.requestPermission();
