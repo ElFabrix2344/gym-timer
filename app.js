@@ -259,6 +259,32 @@ function releaseWakeLock() {
   }
 }
 
+// ─── Rest notification (quasi-persistent while the app is alive) ─────────────
+let lastRestNotif = null;
+
+function postSW(msg) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.controller.postMessage(msg);
+  }
+}
+
+function updateRestNotification(paused = false) {
+  if (paused) {
+    postSW({ type: 'REST_TICK', body: `⏸ Pausado · quedan ${fmtTime(remaining)}` });
+    return;
+  }
+  const endText = new Date(restEndTime).toLocaleTimeString('es-ES', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
+  postSW({ type: 'REST_TICK', body: `Quedan ${fmtTime(remaining)} · termina a las ${endText}` });
+}
+
+function clearRestNotification() {
+  lastRestNotif = null;
+  postSW({ type: 'REST_CLEAR' });
+}
+
 // ─── Timer logic ──────────────────────────────────────────────────────────────
 // The countdown is timestamp-based: setInterval only refreshes the display, so
 // background throttling can't freeze or drift the timer — it self-corrects.
@@ -275,6 +301,8 @@ function startRest() {
   clearInterval(interval);
   interval = setInterval(tick, 500);
   requestWakeLock();
+  lastRestNotif = remaining;
+  updateRestNotification();
   saveLiveState();
 }
 
@@ -282,6 +310,11 @@ function tick() {
   remaining = Math.max(0, Math.ceil((restEndTime - Date.now()) / 1000));
   updateDisplay();
   setRing(remaining / totalDuration);
+  // Refresh the shade notification every 5s (silent, same tag)
+  if (remaining > 0 && remaining % 5 === 0 && remaining !== lastRestNotif) {
+    lastRestNotif = remaining;
+    updateRestNotification();
+  }
   if (remaining <= 0) finishRest();
 }
 
@@ -290,6 +323,7 @@ function finishRest() {
   running = false;
   phase = 'idle';
   restEndTime = null;
+  lastRestNotif = null;   // the final notification below replaces the countdown (same tag)
   statRests.textContent = ++totalRests;
   beep('end');
   console.log('[VOLTA] Timer en cero — ejecutando vibración');
@@ -321,11 +355,14 @@ function pauseResume() {
     running = false;
     restEndTime = null;
     btnPlay.textContent = '▶';
+    updateRestNotification(true);
   } else {
     restEndTime = Date.now() + remaining * 1000;
     running = true;
     btnPlay.textContent = '⏸';
     interval = setInterval(tick, 500);
+    lastRestNotif = remaining;
+    updateRestNotification();
   }
   saveLiveState();
 }
@@ -335,6 +372,7 @@ function reset() {
   running = false;
   phase = 'idle';
   restEndTime = null;
+  clearRestNotification();
   remaining = totalDuration = restDuration;
   updateDisplay();
   setRing(1);
@@ -582,6 +620,8 @@ function restoreLiveState() {
     clearInterval(interval);
     interval = setInterval(tick, 500);
     tick();
+    lastRestNotif = remaining;
+    updateRestNotification();
   } else {
     remaining = totalDuration = restDuration;
     updateDisplay();

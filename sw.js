@@ -29,7 +29,10 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('message', e => {
-  if (e.data && e.data.type === 'SHOW_NOTIFICATION') {
+  if (!e.data) return;
+
+  // Final alert: replaces the ongoing countdown notification (same tag) and sounds
+  if (e.data.type === 'SHOW_NOTIFICATION') {
     self.registration.showNotification('¡Descanso terminado!', {
       body: 'Vuelve al trabajo.',
       icon: './icons/icon.svg',
@@ -38,6 +41,23 @@ self.addEventListener('message', e => {
       tag: 'volta-timer',
       renotify: true,
     });
+  }
+
+  // Ongoing countdown: silent updates on the same tag, like a timer in the shade
+  if (e.data.type === 'REST_TICK') {
+    self.registration.showNotification('⏱ Descanso en curso', {
+      body: e.data.body || '',
+      icon: './icons/icon.svg',
+      badge: './icons/icon-maskable.svg',
+      tag: 'volta-timer',
+      silent: true,
+      renotify: false,
+    });
+  }
+
+  if (e.data.type === 'REST_CLEAR') {
+    self.registration.getNotifications({ tag: 'volta-timer' })
+      .then(ns => ns.forEach(n => n.close()));
   }
 });
 
