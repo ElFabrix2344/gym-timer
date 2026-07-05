@@ -192,6 +192,41 @@
     <button class="sets-btn" id="setsUp">+</button>
   </div>
 
+  <div class="active-exercise-bar" id="activeExerciseBar">
+    <div class="active-ex-header">
+      <span class="active-ex-dot"></span>
+      <button class="active-ex-name" id="activeExName" title="Ir al registro"></button>
+      <button class="active-ex-done" id="btnActiveExDone">✓ Terminar</button>
+    </div>
+    <div class="active-ex-body">
+      <span class="active-ex-setnum" id="activeExSetNum">SERIE 1</span>
+      <div class="active-ex-steppers">
+        <div class="stepper">
+          <button class="stepper-btn" id="stWeightDown" type="button">−</button>
+          <div class="stepper-mid">
+            <input class="stepper-value" id="stWeightVal" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0"/>
+            <span class="stepper-label">kg</span>
+          </div>
+          <button class="stepper-btn" id="stWeightUp" type="button">+</button>
+        </div>
+        <div class="stepper">
+          <button class="stepper-btn" id="stRepsDown" type="button">−</button>
+          <div class="stepper-mid">
+            <input class="stepper-value" id="stRepsVal" type="number" inputmode="numeric" min="0" placeholder="0"/>
+            <span class="stepper-label">reps</span>
+          </div>
+          <button class="stepper-btn" id="stRepsUp" type="button">+</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn-secondary" id="btnReset" title="Reset">↺</button>
+    <button class="btn-main" id="btnPlay">▶</button>
+    <button class="btn-secondary" id="btnSet" title="Registrar serie">＋</button>
+  </div>
+
   <div class="duration-section">
     <div class="section-label">Tiempo de descanso</div>
     <div class="duration-pills" id="pills">
@@ -204,18 +239,6 @@
       <input class="custom-input" id="customInput" type="number" min="5" max="600" placeholder="seg"/>
       <span class="custom-label">segundos (manual)</span>
     </div>
-  </div>
-
-  <div class="active-exercise-bar" id="activeExerciseBar">
-    <span class="active-ex-dot"></span>
-    <button class="active-ex-name" id="activeExName" title="Ir al registro"></button>
-    <button class="active-ex-done" id="btnActiveExDone">✓ Terminar</button>
-  </div>
-
-  <div class="controls">
-    <button class="btn-secondary" id="btnReset" title="Reset">↺</button>
-    <button class="btn-main" id="btnPlay">▶</button>
-    <button class="btn-secondary" id="btnSet" title="Registrar serie">＋</button>
   </div>
 
   <div class="stats-bar">

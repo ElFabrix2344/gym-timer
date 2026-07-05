@@ -71,6 +71,13 @@ const planChips            = document.getElementById('planChips');
 const activeExerciseBar    = document.getElementById('activeExerciseBar');
 const activeExName         = document.getElementById('activeExName');
 const btnActiveExDone      = document.getElementById('btnActiveExDone');
+const activeExSetNum       = document.getElementById('activeExSetNum');
+const stWeightVal          = document.getElementById('stWeightVal');
+const stWeightDown         = document.getElementById('stWeightDown');
+const stWeightUp           = document.getElementById('stWeightUp');
+const stRepsVal            = document.getElementById('stRepsVal');
+const stRepsDown           = document.getElementById('stRepsDown');
+const stRepsUp             = document.getElementById('stRepsUp');
 const routineViewEdit      = document.getElementById('routineViewEdit');
 const btnRoutineEdit       = document.getElementById('btnRoutineEdit');
 const btnRoutineBackEdit   = document.getElementById('btnRoutineBackEdit');
@@ -578,6 +585,7 @@ function addLogSetRow(weight = '', reps = '') {
     if (logSetsList.children.length > 1) {
       row.remove();
       renumberSetRows();
+      syncCardFromRow();
     }
   });
 
@@ -602,6 +610,7 @@ function addLogSetRow(weight = '', reps = '') {
 
   row.append(num, wField, xSep, rField, del);
   logSetsList.appendChild(row);
+  syncCardFromRow();
   return row;
 }
 
@@ -609,7 +618,7 @@ function renumberSetRows() {
   logSetsList.querySelectorAll('.log-set-num').forEach((n, i) => n.textContent = i + 1);
 }
 
-function saveEntry() {
+function saveEntry(refocus = true) {
   const name = logExercise.value.trim();
   if (!name) {
     logExercise.classList.remove('shake');
@@ -647,7 +656,7 @@ function saveEntry() {
   logExercise.value = '';
   logSetsList.innerHTML = '';
   addLogSetRow();
-  logExercise.focus();
+  if (refocus !== false) logExercise.focus();
 
   renderCurrentSession();
   populateExerciseDatalist();
@@ -1403,11 +1412,14 @@ function renderPlanChips() {
     chip.type = 'button';
     chip.textContent = name;
     chip.addEventListener('click', () => {
+      // Switching exercise with unsaved data → bank it first so nothing is lost
+      const formName = logExercise.value.trim();
+      if (formName && formName.toLowerCase() !== name.toLowerCase() && logFormHasData()) {
+        saveEntry(false);
+      }
       setActiveExercise(name);
       logExercise.value = name;
-      logExercise.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      const firstWeight = logSetsList.querySelector('.log-set-weight');
-      if (firstWeight) firstWeight.focus();
+      activeExerciseBar.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
 
     const check = document.createElement('button');
@@ -1415,7 +1427,7 @@ function renderPlanChips() {
     check.type = 'button';
     check.textContent = '✓';
     check.title = 'Terminar ejercicio';
-    check.addEventListener('click', () => markPlanChipDone(name));
+    check.addEventListener('click', () => finishExercise(name));
 
     wrap.append(chip, check);
     planChips.appendChild(wrap);
@@ -1439,10 +1451,84 @@ function updateActiveChipStyles() {
   });
 }
 
+// Last weight used for an exercise: local log first, then FitNotes
+function getLastKnownWeight(name) {
+  const lower = name.toLowerCase();
+  const log = loadLog();
+  const keys = Object.keys(log).sort((a, b) => b.localeCompare(a));
+  for (const key of keys) {
+    for (const entry of log[key]) {
+      if (!entry.exercise || entry.exercise.toLowerCase() !== lower) continue;
+      if (Array.isArray(entry.sets)) {
+        for (let i = entry.sets.length - 1; i >= 0; i--) {
+          if (entry.sets[i].weight) return entry.sets[i].weight;
+        }
+      } else if (entry.weight) {
+        return entry.weight;
+      }
+    }
+  }
+  const fn = loadFitNotes();
+  if (fn && fn.exercises) {
+    for (const [exName, sessions] of Object.entries(fn.exercises)) {
+      if (exName.toLowerCase() !== lower) continue;
+      const sets = (sessions[0] && sessions[0].sets) || [];
+      for (let i = sets.length - 1; i >= 0; i--) {
+        const w = parseFloat(sets[i].weight);
+        if (w > 0) return String(w);
+      }
+    }
+  }
+  return '';
+}
+
+function lastLogRow() {
+  const rows = logSetsList.querySelectorAll('.log-set-row');
+  return rows.length ? rows[rows.length - 1] : null;
+}
+
+function logFormHasData() {
+  return Array.from(logSetsList.querySelectorAll('.log-set-row')).some(r =>
+    r.querySelector('.log-set-weight').value.trim() ||
+    r.querySelector('.log-set-reps').value.trim());
+}
+
+// The card's steppers edit the LAST set row of the log form (the current set)
+function syncCardFromRow() {
+  if (!activeExercise) return;
+  const row = lastLogRow();
+  const n = logSetsList.querySelectorAll('.log-set-row').length;
+  activeExSetNum.textContent = 'SERIE ' + Math.max(n, 1);
+  stWeightVal.value = row ? row.querySelector('.log-set-weight').value : '';
+  stRepsVal.value   = row ? row.querySelector('.log-set-reps').value   : '';
+}
+
+function syncRowFromCard() {
+  const row = lastLogRow();
+  if (!row) return;
+  row.querySelector('.log-set-weight').value = stWeightVal.value;
+  row.querySelector('.log-set-reps').value   = stRepsVal.value;
+}
+
+function stepCardValue(input, delta, min) {
+  const cur = parseFloat(input.value);
+  let next = (isNaN(cur) ? 0 : cur) + delta;
+  if (next < min) next = min;
+  input.value = String(parseFloat(next.toFixed(1)));
+  syncRowFromCard();
+}
+
 function setActiveExercise(name) {
   activeExercise = name;
   activeExName.textContent = name;
   activeExerciseBar.classList.add('show');
+  // Untouched form → prefill weight from the last known session
+  const rows = logSetsList.querySelectorAll('.log-set-row');
+  if (rows.length === 1 && !logFormHasData()) {
+    const lw = getLastKnownWeight(name);
+    if (lw) rows[0].querySelector('.log-set-weight').value = lw;
+  }
+  syncCardFromRow();
   updateActiveChipStyles();
 }
 
@@ -1450,6 +1536,15 @@ function clearActiveExercise() {
   activeExercise = null;
   activeExerciseBar.classList.remove('show');
   updateActiveChipStyles();
+}
+
+// ✓ Terminar: save whatever is in the form for this exercise, then mark it done
+function finishExercise(name) {
+  const formName = logExercise.value.trim();
+  if (logFormHasData() && formName && formName.toLowerCase() === name.toLowerCase()) {
+    saveEntry(false);
+  }
+  markPlanChipDone(name);
 }
 
 function addEditRow(name) {
@@ -1558,7 +1653,7 @@ btnRoutineStart.addEventListener('click', () => {
   renderPlanChips();
 });
 
-// Active exercise bar: name → jump to log form; ✓ → finish exercise
+// Active exercise card: name → jump to log form; ✓ → save + finish exercise
 activeExName.addEventListener('click', () => {
   if (!activeExercise) return;
   logExercise.value = activeExercise;
@@ -1566,8 +1661,19 @@ activeExName.addEventListener('click', () => {
 });
 
 btnActiveExDone.addEventListener('click', () => {
-  if (activeExercise) markPlanChipDone(activeExercise);
+  if (activeExercise) finishExercise(activeExercise);
 });
+
+// Card steppers edit the current (last) set row
+stWeightDown.addEventListener('click', () => stepCardValue(stWeightVal, -2.5, 0));
+stWeightUp.addEventListener('click',   () => stepCardValue(stWeightVal,  2.5, 0));
+stRepsDown.addEventListener('click',   () => stepCardValue(stRepsVal, -1, 0));
+stRepsUp.addEventListener('click',     () => stepCardValue(stRepsVal,  1, 0));
+stWeightVal.addEventListener('input', syncRowFromCard);
+stRepsVal.addEventListener('input', syncRowFromCard);
+
+// Typing directly in the form rows keeps the card in sync
+logSetsList.addEventListener('input', () => syncCardFromRow());
 
 btnStartSession.addEventListener('click', () => {
   showRoutineView('type');
