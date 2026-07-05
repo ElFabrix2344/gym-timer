@@ -15,6 +15,7 @@ let currentPlan             = [];
 let routineSelectedExercises = new Set();
 let currentRoutineType      = null;
 let completedExercises      = new Set();
+let activeExercise          = null;
 
 const CIRCUMFERENCE = 2 * Math.PI * 118;
 
@@ -67,6 +68,9 @@ const btnRoutineStart      = document.getElementById('btnRoutineStart');
 const btnRoutineBack       = document.getElementById('btnRoutineBack');
 const sessionPlan          = document.getElementById('sessionPlan');
 const planChips            = document.getElementById('planChips');
+const activeExerciseBar    = document.getElementById('activeExerciseBar');
+const activeExName         = document.getElementById('activeExName');
+const btnActiveExDone      = document.getElementById('btnActiveExDone');
 const routineViewEdit      = document.getElementById('routineViewEdit');
 const btnRoutineEdit       = document.getElementById('btnRoutineEdit');
 const btnRoutineBackEdit   = document.getElementById('btnRoutineBackEdit');
@@ -211,6 +215,7 @@ function endSession() {
   btnStartSession.style.display = '';
   currentPlan = [];
   completedExercises = new Set();
+  clearActiveExercise();
   sessionPlan.style.display = 'none';
   planChips.innerHTML = '';
 
@@ -301,6 +306,20 @@ function registerSet() {
   setsDisplay.textContent = sets;
   statSets.textContent = sets;
   updateDots();
+
+  // Mirror the set into the log form of the active exercise:
+  // add a fresh row (keeping the weight) only if the last one already has data
+  if (activeExercise) {
+    if (!logExercise.value.trim()) logExercise.value = activeExercise;
+    const rows = logSetsList.querySelectorAll('.log-set-row');
+    const last = rows[rows.length - 1];
+    if (last) {
+      const w = last.querySelector('.log-set-weight').value.trim();
+      const r = last.querySelector('.log-set-reps').value.trim();
+      if (w || r) addLogSetRow(w);
+    }
+  }
+
   beep('set');
   showToast('¡SERIE COMPLETADA!');
   startRest();
@@ -631,6 +650,7 @@ function saveEntry() {
   logExercise.focus();
 
   renderCurrentSession();
+  populateExerciseDatalist();
   showToast('Ejercicio guardado');
 }
 
@@ -846,6 +866,35 @@ function loadFitNotes() {
 function saveFitNotes(data) {
   try { localStorage.setItem('gym-timer-fitnotes', JSON.stringify(data)); }
   catch(e) { alert('Archivo demasiado grande para el almacenamiento local (límite ~5 MB).'); }
+}
+
+// Fills #fnExercisesList (autocomplete for log form and routine editor)
+// with FitNotes names + locally logged names, deduped case-insensitively
+function populateExerciseDatalist() {
+  const dl = document.getElementById('fnExercisesList');
+  dl.innerHTML = '';
+
+  const byLower = new Map();
+  const fn = loadFitNotes();
+  if (fn && fn.exercises) {
+    for (const name of Object.keys(fn.exercises)) byLower.set(name.toLowerCase(), name);
+  }
+  const log = loadLog();
+  for (const entries of Object.values(log)) {
+    for (const e of entries) {
+      if (e.exercise && !byLower.has(e.exercise.toLowerCase())) {
+        byLower.set(e.exercise.toLowerCase(), e.exercise);
+      }
+    }
+  }
+
+  Array.from(byLower.values())
+    .sort((a, b) => a.localeCompare(b))
+    .forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      dl.appendChild(opt);
+    });
 }
 
 // ─── FitNotes – CSV parser ────────────────────────────────────────────────────
@@ -1090,6 +1139,7 @@ fnFileInput.addEventListener('change', e => {
       return;
     }
     saveFitNotes(data);
+    populateExerciseDatalist();
     const count = Object.keys(data.exercises).length;
     fnImportInfo.textContent = `${count} ejercicios · ${data.totalRows} registros`;
     fnSearchInput.value = '';
@@ -1346,12 +1396,14 @@ function renderPlanChips() {
     wrap.className = 'plan-chip-wrap';
     wrap.dataset.name = name.toLowerCase();
     if (completedExercises.has(name.toLowerCase())) wrap.classList.add('done');
+    if (activeExercise && activeExercise.toLowerCase() === name.toLowerCase()) wrap.classList.add('active');
 
     const chip = document.createElement('button');
     chip.className = 'plan-chip';
     chip.type = 'button';
     chip.textContent = name;
     chip.addEventListener('click', () => {
+      setActiveExercise(name);
       logExercise.value = name;
       logExercise.scrollIntoView({ behavior: 'smooth', block: 'center' });
       const firstWeight = logSetsList.querySelector('.log-set-weight');
@@ -1376,6 +1428,28 @@ function markPlanChipDone(name) {
   planChips.querySelectorAll('.plan-chip-wrap').forEach(wrap => {
     if (wrap.dataset.name === lower) wrap.classList.add('done');
   });
+  if (activeExercise && activeExercise.toLowerCase() === lower) clearActiveExercise();
+}
+
+// ─── Active exercise ──────────────────────────────────────────────────────────
+function updateActiveChipStyles() {
+  planChips.querySelectorAll('.plan-chip-wrap').forEach(wrap => {
+    wrap.classList.toggle('active',
+      activeExercise !== null && wrap.dataset.name === activeExercise.toLowerCase());
+  });
+}
+
+function setActiveExercise(name) {
+  activeExercise = name;
+  activeExName.textContent = name;
+  activeExerciseBar.classList.add('show');
+  updateActiveChipStyles();
+}
+
+function clearActiveExercise() {
+  activeExercise = null;
+  activeExerciseBar.classList.remove('show');
+  updateActiveChipStyles();
 }
 
 function addEditRow(name) {
@@ -1403,17 +1477,7 @@ function renderRoutineEdit(type) {
   routineEditList.innerHTML = '';
   routineEditTitle.textContent = 'EDITAR ' + type.toUpperCase();
 
-  // Populate datalist from FitNotes for autocomplete
-  const fnExList = document.getElementById('fnExercisesList');
-  fnExList.innerHTML = '';
-  const fn = loadFitNotes();
-  if (fn && fn.exercises) {
-    Object.keys(fn.exercises).sort().forEach(name => {
-      const opt = document.createElement('option');
-      opt.value = name;
-      fnExList.appendChild(opt);
-    });
-  }
+  populateExerciseDatalist();
 
   // Seed from custom or FitNotes-derived list
   const custom = loadCustomRoutines();
@@ -1488,9 +1552,21 @@ btnRoutineReset.addEventListener('click', () => {
 btnRoutineStart.addEventListener('click', () => {
   currentPlan = Array.from(routineSelectedExercises);
   completedExercises = new Set();
+  clearActiveExercise();
   closeRoutinePanel();
   if (!sessionClockStart) startSessionClock();
   renderPlanChips();
+});
+
+// Active exercise bar: name → jump to log form; ✓ → finish exercise
+activeExName.addEventListener('click', () => {
+  if (!activeExercise) return;
+  logExercise.value = activeExercise;
+  logExercise.scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+btnActiveExDone.addEventListener('click', () => {
+  if (activeExercise) markPlanChipDone(activeExercise);
 });
 
 btnStartSession.addEventListener('click', () => {
@@ -1522,6 +1598,7 @@ updateDisplay();
 setRing(1);
 renderCurrentSession();
 addLogSetRow();
+populateExerciseDatalist();
 
 if ('Notification' in window && Notification.permission === 'default') {
   Notification.requestPermission();

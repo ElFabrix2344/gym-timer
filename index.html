@@ -206,6 +206,12 @@
     </div>
   </div>
 
+  <div class="active-exercise-bar" id="activeExerciseBar">
+    <span class="active-ex-dot"></span>
+    <button class="active-ex-name" id="activeExName" title="Ir al registro"></button>
+    <button class="active-ex-done" id="btnActiveExDone">✓ Terminar</button>
+  </div>
+
   <div class="controls">
     <button class="btn-secondary" id="btnReset" title="Reset">↺</button>
     <button class="btn-main" id="btnPlay">▶</button>
@@ -248,7 +254,7 @@
     </div>
 
     <div class="log-form" id="logForm">
-      <input class="log-input-wide" id="logExercise" type="text" placeholder="Nombre del ejercicio" autocomplete="off"/>
+      <input class="log-input-wide" id="logExercise" type="text" placeholder="Nombre del ejercicio" autocomplete="off" list="fnExercisesList"/>
       <div class="log-sets-list" id="logSetsList"></div>
       <button class="btn-log-add-set" id="btnLogAddSet" type="button">+ Añadir serie</button>
       <button class="btn-log-save" id="btnLogSave">Guardar ejercicio</button>

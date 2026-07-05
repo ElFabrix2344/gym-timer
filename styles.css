@@ -356,6 +356,75 @@ body {
   color: var(--muted);
 }
 
+/* ─── Active exercise bar ────────────────────────────────────────────────── */
+.active-exercise-bar {
+  display: none;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 16px;
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  border-radius: 14px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+  margin: -8px 0;
+}
+
+.active-exercise-bar.show {
+  display: flex;
+}
+
+.active-ex-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: blink 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+.active-ex-name {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-ex-done {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: none;
+  border: 1.5px solid var(--accent);
+  border-radius: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'DM Sans', sans-serif;
+  flex-shrink: 0;
+}
+
+.active-ex-done:hover {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+[data-theme="dark"] .active-ex-done:hover {
+  color: #080e1a;
+}
+
 /* ─── Controls ───────────────────────────────────────────────────────────── */
 .controls {
   display: flex;
@@ -1788,6 +1857,21 @@ body {
 
 [data-theme="dark"] .plan-chip-check:hover {
   background: rgba(255,255,255,0.06);
+}
+
+/* active state */
+.plan-chip-wrap.active {
+  border-color: var(--accent);
+  background: rgba(0,0,0,0.04);
+}
+
+[data-theme="dark"] .plan-chip-wrap.active {
+  background: rgba(79,158,255,0.08);
+}
+
+.plan-chip-wrap.active .plan-chip {
+  font-weight: 700;
+  color: var(--accent);
 }
 
 /* done state */
