@@ -1,4 +1,4 @@
-const CACHE = 'volta-v2';
+const CACHE = 'volta-v3';
 
 const PRECACHE = [
   './',
@@ -8,6 +8,11 @@ const PRECACHE = [
   './manifest.json',
   './icons/icon.svg',
   './icons/icon-maskable.svg',
+  './lite/',
+  './lite/index.html',
+  './lite/styles.css',
+  './lite/app.js',
+  './lite/manifest.json',
 ];
 
 self.addEventListener('install', e => {

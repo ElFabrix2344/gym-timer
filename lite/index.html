@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VOLTA LITE</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VOLTA LITE">
+  <link rel="apple-touch-icon" href="../icons/icon.svg">
+</head>
+<body>
+
+<div class="flash" id="flash"></div>
+<div class="toast" id="toast"></div>
+
+<div class="container">
+
+  <header class="header">
+    <span class="logo">VOLTA <em>LITE</em></span>
+    <a class="full-link" href="../">Completa →</a>
+  </header>
+
+  <!-- Timer -->
+  <button class="ring-wrap" id="ringWrap" title="Tocar para iniciar / pausar">
+    <svg class="ring-svg" viewBox="0 0 200 200">
+      <circle class="ring-bg" cx="100" cy="100" r="90"/>
+      <circle class="ring-progress" id="ringProgress" cx="100" cy="100" r="90"
+        stroke-dasharray="565.5" stroke-dashoffset="0"/>
+    </svg>
+    <span class="time" id="timeDisplay">1:30</span>
+  </button>
+
+  <div class="pills-row">
+    <div class="pills" id="pills">
+      <button class="pill" data-val="30">30s</button>
+      <button class="pill active" data-val="90">1:30</button>
+      <button class="pill" data-val="120">2:00</button>
+      <button class="pill" data-val="180">3:00</button>
+    </div>
+    <button class="btn-reset" id="btnReset" title="Reiniciar timer">↺</button>
+  </div>
+
+  <!-- Set counter -->
+  <div class="counter">
+    <button class="cnt-btn" id="cntDown">−</button>
+    <div class="cnt-mid">
+      <div class="cnt-val" id="cntVal">0</div>
+      <div class="cnt-label">SERIES HOY</div>
+    </div>
+    <button class="cnt-btn" id="cntUp">+</button>
+  </div>
+
+  <!-- Quick log -->
+  <div class="log">
+    <input class="ex-input" id="exName" type="text" placeholder="Ejercicio"
+           autocomplete="off" list="exList"/>
+    <datalist id="exList"></datalist>
+
+    <div class="last-line" id="lastLine" style="display:none"></div>
+
+    <div class="steppers">
+      <div class="stepper">
+        <button class="st-btn" id="wDown">−</button>
+        <div class="st-mid">
+          <input class="st-val" id="wVal" type="number" inputmode="decimal" min="0" step="0.5" placeholder="0"/>
+          <span class="st-label">kg</span>
+        </div>
+        <button class="st-btn" id="wUp">+</button>
+      </div>
+      <div class="stepper">
+        <button class="st-btn" id="rDown">−</button>
+        <div class="st-mid">
+          <input class="st-val" id="rVal" type="number" inputmode="numeric" min="0" placeholder="0"/>
+          <span class="st-label">reps</span>
+        </div>
+        <button class="st-btn" id="rUp">+</button>
+      </div>
+    </div>
+
+    <button class="btn-save" id="btnSave">GUARDAR SERIE</button>
+
+    <div class="today-line" id="todayLine" style="display:none"></div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('../sw.js'));
+  }
+</script>
+</body>
+</html>
