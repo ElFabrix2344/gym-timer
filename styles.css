@@ -89,6 +89,26 @@ body {
   transform: scale(1.08);
 }
 
+.btn-lite-top {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  font-size: 15px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+.btn-lite-top:hover {
+  border-color: var(--accent);
+  transform: scale(1.08);
+}
+
 .phase-badge {
   font-size: 10px;
   font-weight: 600;
@@ -1827,30 +1847,6 @@ body {
   color: var(--accent);
 }
 
-/* ─── VOLTA Lite link ────────────────────────────────────────────────────── */
-.btn-lite-link {
-  display: block;
-  width: 100%;
-  padding: 11px;
-  border-radius: 12px;
-  border: 1.5px dashed var(--border);
-  background: transparent;
-  color: var(--muted);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  text-align: center;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.btn-lite-link:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-}
 
 /* ─── FitNotes panel ─────────────────────────────────────────────────────── */
 .fn-panel {
@@ -2631,9 +2627,12 @@ body {
 }
 
 .routine-footer {
-  padding: 16px 24px 40px;
+  padding: 14px 24px 40px;
   flex-shrink: 0;
   border-top: 1.5px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .btn-routine-start {

@@ -1847,6 +1847,7 @@ function renderRoutineExercises(type) {
   routineSelectedExercises = new Set();
   currentRoutineType = type;
   routineTitle.textContent = type.toUpperCase();
+  populateExerciseDatalist();
 
   const custom = loadCustomRoutines();
   const hasCustom = custom[type] && custom[type].length > 0;
@@ -2235,6 +2236,53 @@ btnRoutineAdd.addEventListener('click', () => {
 
 routineAddInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') btnRoutineAdd.click();
+});
+
+// Quick-add: append an exercise to the routine list without opening the editor.
+// Persists into the custom routine (snapshotting the FitNotes list if needed).
+const routineQuickInput  = document.getElementById('routineQuickInput');
+const btnRoutineQuickAdd = document.getElementById('btnRoutineQuickAdd');
+
+function quickAddExercise() {
+  const name = routineQuickInput.value.trim();
+  const type = currentRoutineType;
+  if (!name || !type) return;
+
+  const routines = loadCustomRoutines();
+  const base = (routines[type] && routines[type].length)
+    ? routines[type]
+    : getExercisesForRoutine(type).map(e => e.name);
+
+  if (base.some(n => n.toLowerCase() === name.toLowerCase())) {
+    showToast('Ya está en la lista');
+    routineQuickInput.value = '';
+    return;
+  }
+
+  base.push(name);
+  routines[type] = base;
+  saveCustomRoutines(routines);
+
+  // Re-render preserving the current selection (+ the new exercise)
+  const prevSelected = new Set(routineSelectedExercises);
+  prevSelected.add(name);
+  renderRoutineExercises(type);
+  routineSelectedExercises = new Set();
+  routineExerciseList.querySelectorAll('.routine-exercise-item').forEach(item => {
+    const sel = prevSelected.has(item.dataset.name);
+    item.classList.toggle('selected', sel);
+    if (sel) routineSelectedExercises.add(item.dataset.name);
+  });
+  updateRoutineStartBtn();
+
+  routineQuickInput.value = '';
+  routineExerciseList.scrollTop = routineExerciseList.scrollHeight;
+  showToast('Ejercicio añadido');
+}
+
+btnRoutineQuickAdd.addEventListener('click', quickAddExercise);
+routineQuickInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') quickAddExercise();
 });
 
 btnRoutineReset.addEventListener('click', () => {
