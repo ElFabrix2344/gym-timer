@@ -1,4 +1,4 @@
-const CACHE = 'volta-v1';
+const CACHE = 'volta-v2';
 
 const PRECACHE = [
   './',
@@ -41,34 +41,23 @@ self.addEventListener('message', e => {
   }
 });
 
+// Network first, cache as fallback: updates always arrive when online,
+// and the app keeps working offline from the last cached version
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
+  const cacheable = url.origin === self.location.origin ||
+                    url.hostname === 'fonts.googleapis.com' ||
+                    url.hostname === 'fonts.gstatic.com';
 
-  // Google Fonts: network first, cache as fallback
-  if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
-    e.respondWith(
-      fetch(e.request)
-        .then(res => {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-          return res;
-        })
-        .catch(() => caches.match(e.request))
-    );
-    return;
-  }
-
-  // Everything else: cache first, network fallback + opportunistic cache update
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).then(res => {
-        if (res.ok && url.origin === self.location.origin) {
+    fetch(e.request)
+      .then(res => {
+        if (res.ok && cacheable) {
           const clone = res.clone();
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
         return res;
-      });
-    })
+      })
+      .catch(() => caches.match(e.request))
   );
 });
